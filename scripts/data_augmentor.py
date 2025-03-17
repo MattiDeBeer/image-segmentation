@@ -77,14 +77,14 @@ class CustomTransform:
         #return labels and images
         return image, label
 
-def fetch_dataset_filenames(image_directory = '../Dataset/TrainVal/color/', label_directory = '../Dataset/TrainVal/label/'):
+def fetch_dataset_filenames(image_directory = 'Dataset/TrainVal/color/', label_directory = 'Dataset/TrainVal/label/'):
     """
     Parameters
     ----------
     image_directory : string, optional
-        The directory of the images. The default is '../Dataset/TrainVal/color/'.
+        The directory of the images. The default is 'Dataset/TrainVal/color/'.
     label_directory : string, optional
-        The directory of the labels. The default is '../Dataset/TrainVal/label/'.
+        The directory of the labels. The default is 'Dataset/TrainVal/label/'.
 
     Returns
     -------
@@ -110,7 +110,7 @@ def fetch_dataset_filenames(image_directory = '../Dataset/TrainVal/color/', labe
 
     return list(data_files), list(label_files), list(common_files)
 
-def transform_datapoint(image,label,identity_map=False,image_dim = 300):
+def transform_datapoint(image,label,identity_map=False,image_dim = 256):
     """
     Parameters
     ----------
@@ -132,7 +132,7 @@ def transform_datapoint(image,label,identity_map=False,image_dim = 300):
     """
     #set cropping parameters
     random_crop_size = image_dim
-    random_crop_scale = (0.5,1.5)
+    random_crop_scale = (0.7,1.3)
 
     #If the identity flag is true, only crop the image and label
     if identity_map:
@@ -228,7 +228,7 @@ def save_new_datapoint(image,label,image_path,label_path,filename):
         #If a specific file fails to save, warn the user
         print(f"{filename} failed to save \n {e}")
 
-def convert_to_h5(image_dir, label_dir, database_file, image_shape = 300):
+def convert_to_h5(image_dir, label_dir, database_file, image_shape = 256):
     """
     Parameters
     ----------
@@ -254,24 +254,27 @@ def convert_to_h5(image_dir, label_dir, database_file, image_shape = 300):
 
         #specify the image and label sizes
         img_shape = (len(filenames), image_shape, image_shape, 3)
-        label_shape = (len(filenames), image_shape, image_shape)
+        label_shape = (len(filenames), 2, image_shape, image_shape)
+        uncertianty_shape = (len(filenames), image_shape, image_shape)
 
         #create the h5 datasets
         image_dataset = h5f.create_dataset("images", img_shape, dtype=np.uint8)
         filename_dataset = filename_dataset = h5f.create_dataset("filenames", (len(filenames),), dtype=h5py.string_dtype())
         label_dataset = h5f.create_dataset("labels", label_shape, dtype=np.uint8)
+        uncertian_regions_dataset = h5f.create_dataset('uncertian_regions', uncertianty_shape, dtype=np.uint8)
 
         # Store images, labels and filenames in the database
         for i, file in tqdm(enumerate(filenames), total=len(filenames),desc='Converting to .h5 file', unit = ' Images'):
 
             #Open the images and labels
             img = Image.open(os.path.join(image_dir, file +'.jpg'))
-            label = Image.open(os.path.join(label_dir, file +'.png'))
+            label = np.array(Image.open(os.path.join(label_dir, file +'.png')), dtype=np.uint8)
 
             try:
                 #Store the images and labels in the .h5 file
                 image_dataset[i] = np.array(img)
-                label_dataset[i] = np.array(label)
+                label_dataset[i] = np.array([ label == 1, label == 2 ], dtype=np.uint8 )
+                uncertian_regions_dataset[i] = np.array( label == 255, dtype=np.uint8)
                 filename_dataset[i] = file
             except:
                 print(f"Conversion of {file} failed")
@@ -280,8 +283,8 @@ def convert_to_h5(image_dir, label_dir, database_file, image_shape = 300):
 if __name__ == '__main__':
 
     # Define augmented data directory
-    augmented_data_dir = '../augmented-dataset/TrainVal/color/'
-    augmented_label_dir = '../augmented-dataset/TrainVal/label/'
+    augmented_data_dir = 'augmented-dataset/TrainVal/color/'
+    augmented_label_dir = 'augmented-dataset/TrainVal/label/'
 
     #Set the number of datapoints
     augmentations_per_datapoints = 4
@@ -291,7 +294,7 @@ if __name__ == '__main__':
 
     #Itterate through filenames
     for i in tqdm( range(0,len(data_files)), desc = 'Transforming dataset', unit = ' Images'):
-
+        
         #Open image and label file
         image, label = open_datapoint(data_files[i],label_files[i])
 
@@ -309,16 +312,16 @@ if __name__ == '__main__':
 
             #save image
             save_new_datapoint(augmented_image,augmented_label,augmented_data_dir,augmented_label_dir,f"{filenames[i]}({j+1})")
-
+            
     #convert all images in augmented dataset directory to .h5 file
-    convert_to_h5('../augmented-dataset/TrainVal/color/', '../augmented-dataset/TrainVal/label/', '../augmented-dataset/TrainVal.h5')
-
+    convert_to_h5('augmented-dataset/TrainVal/color/', 'augmented-dataset/TrainVal/label/', 'augmented-dataset/TrainVal.h5')
+    
     # Define augmented test data directory
-    augmented_test_data_dir = '../augmented-dataset/Test/color/'
-    augmented_test_label_dir = '../augmented-dataset/Test/label/'
+    augmented_test_data_dir = 'augmented-dataset/Test/color/'
+    augmented_test_label_dir = 'augmented-dataset/Test/label/'
 
     #Fetch filenames in test dataset directory
-    test_data_files, test_label_files, test_filenames = fetch_dataset_filenames(image_directory = '../Dataset/Test/color/', label_directory = '../Dataset/Test/label/')
+    test_data_files, test_label_files, test_filenames = fetch_dataset_filenames(image_directory = 'Dataset/Test/color/', label_directory = 'Dataset/Test/label/')
 
     #Itterate through test filenames
     for i in tqdm( range(0,len(test_data_files)), desc = 'Cropping test dataset', unit = ' Images'):
@@ -333,4 +336,5 @@ if __name__ == '__main__':
         save_new_datapoint(cropped_image,cropped_label,augmented_test_data_dir,augmented_test_label_dir,f"{test_filenames[i]}")
 
     #convert all test images in augmented dataset directory to .h5 file
-    convert_to_h5('../augmented-dataset/Test/color/', '../augmented-dataset/Test/label/', '../augmented-dataset/Test.h5')
+    convert_to_h5('augmented-dataset/Test/color/', 'augmented-dataset/Test/label/', 'augmented-dataset/Test.h5')
+    
