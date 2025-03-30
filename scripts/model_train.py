@@ -27,15 +27,18 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 save_location = get_next_run_folder(model_save_file)
 
-#train_dataset = ImageDataset(dataset=dataset_loc,split='test', uncertianty_mask_coeff=uncertianty_mask_coefficient)
-#validation_dataset = ImageDataset(dataset=dataset_loc,split='test', uncertianty_mask_coeff=0)
-#train_dataset = ImageDataset(dataset=dataset_loc,split='test', uncertianty_mask_coeff=uncertianty_mask_coefficient)
-#validation_dataset = ImageDataset(dataset=dataset_loc,split='test', uncertianty_mask_coeff=0)
+train_dataset = ImageDataset(dataset=dataset_loc,split='test', uncertianty_mask_coeff=uncertianty_mask_coefficient)
+validation_dataset = ImageDataset(dataset=dataset_loc,split='test', uncertianty_mask_coeff=0)
+train_dataset = ImageDataset(dataset=dataset_loc,split='test', uncertianty_mask_coeff=uncertianty_mask_coefficient)
+validation_dataset = ImageDataset(dataset=dataset_loc,split='test', uncertianty_mask_coeff=0)
 
-train_dataloader = DataLoader(DummyDataset(),batch_size = batch_size)
-validation_dataloader = DataLoader(DummyDataset(),batch_size=batch_size)
+train_dataloader = DataLoader(train_dataset,batch_size = batch_size)
+validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size)
 
-model.to(device)
+if torch.cuda.is_available():
+    model = torch.compile(model)  # Compile first
+    model.to(device)  # Then move to GPU
+
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 criterion = nn.BCELoss()
 
