@@ -6,81 +6,54 @@ Created on Fri Mar 14 18:47:56 2025
 @author: matti
 """
 import torch.nn as nn
+from torch import cat
+import torch.nn.functional as F
 
 class ConvBlock(nn.Module):
-    
-    def __init__(self, in_channels, out_channels, kernel_size=5, padding=2):
-        
-        super(ConvBlock,self).__init__()
-        
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size,padding=padding)
-        self.bn = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
-        
-    def forward(self,X):
-        
-        X1 = self.conv(X)
-        X2 = self.bn(X1)
-        X3 = self.relu(X2)
-        
-        return X3
-    
+    def __init__(self, in_channels, out_channels, kernel_size=3, padding=1):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size, padding=padding),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size, padding=padding),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True)
+        )
+
+    def forward(self, x):
+        return self.conv(x)
+
 class ConvBlockDownsample(nn.Module):
-    
-    def __init__(self,in_channels,out_channels):
-        super(ConvBlockDownsample,self).__init__()
-        
-        self.conv = nn.Conv2d(in_channels, out_channels,kernel_size=3,padding=1)
-        self.bn = nn.BatchNorm2d(out_channels)
-        self.downsample = nn.MaxPool2d(2)
-        self.relu = nn.ReLU(inplace=True)
-        
-    def forward(self,X):
-        
-        X1 = self.conv(X)
-        X2 = self.bn(X1)
-        X3 = self.downsample(X2)
-        X4 = self.relu(X3)
-        
-        return X4
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.block = nn.Sequential(
+            ConvBlock(in_channels, out_channels),
+            nn.MaxPool2d(kernel_size=2, stride=2)
+        )
+
+    def forward(self, x):
+        return self.block(x)
+
+class ConvBlockUpsampleSkip(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.up = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
+        self.conv = ConvBlock(out_channels * 2, out_channels)
+
+    def forward(self, x, skip):
+        x = self.up(x)
+        x = F.interpolate(x, size=skip.shape[2:], mode="bilinear", align_corners=True)
+        x = cat([x, skip], dim=1)
+        return self.conv(x)
         
 class ConvBlockUpsample(nn.Module):
-    
-    def __init__(self,in_channels,out_channels):
-        super(ConvBlockUpsample,self).__init__()
-        
-        self.upsample = nn.ConvTranspose2d(in_channels, 2* in_channels, kernel_size=2,stride=2,padding=2)
-        self.conv = nn.Conv2d(2* in_channels, out_channels, kernel_size=3,padding=3)
-        self.bn = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
-        
-    def forward(self,X):
-        
-        X1 = self.upsample(X)
-        X2 = self.conv(X1)
-        X3 = self.bn(X2)
-        X4 = self.relu(X3)
-        
-        return X4
-    
-class ConvBlockRes(nn.Module):
-    
-    def __init__(self, in_channels, out_channels, kernel_size=3, padding=1):
-        
-        ### IMPLEMENT THE RES CONNECTION ###
-        raise NotImplementedError("The residual conneciton convolution block is not yet implemented")
-        
-        super(ConvBlock,self).__init__()
-        
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size,padding=padding)
-        self.bn = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
-        
-    def forward(self,X):
-        
-        X1 = self.conv(X)
-        X2 = self.bn(X1)
-        X3 = self.relu(X2)
-        
-        return X3
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.up = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
+        self.conv = ConvBlock(out_channels * 2, out_channels)
+
+    def forward(self, x):
+        x = self.up(x)
+        return self.conv(x)
         

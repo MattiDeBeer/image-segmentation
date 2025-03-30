@@ -187,6 +187,7 @@ def open_datapoint(image_path,label_path):
 
     #Open the images in the specified paths
     image = Image.open(image_path)
+    image = image.convert("RGB")
     label = Image.open(label_path)
 
     return image, label
@@ -283,8 +284,8 @@ def convert_to_h5(image_dir, label_dir, database_file, image_shape = 256):
 if __name__ == '__main__':
 
     # Define augmented data directory
-    augmented_data_dir = 'augmented-dataset/TrainVal/color/'
-    augmented_label_dir = 'augmented-dataset/TrainVal/label/'
+    augmented_data_dir = '/home/matti/Datasets/Augmented-data-raw-images/train/images/'
+    augmented_label_dir = '/home/matti/Datasets/Augmented-data-raw-images/train/masks/'
 
     #Set the number of datapoints
     augmentations_per_datapoints = 4
@@ -314,11 +315,11 @@ if __name__ == '__main__':
             save_new_datapoint(augmented_image,augmented_label,augmented_data_dir,augmented_label_dir,f"{filenames[i]}({j+1})")
             
     #convert all images in augmented dataset directory to .h5 file
-    convert_to_h5('augmented-dataset/TrainVal/color/', 'augmented-dataset/TrainVal/label/', 'augmented-dataset/TrainVal.h5')
+    #convert_to_h5('augmented-dataset/TrainVal/color/', 'augmented-dataset/TrainVal/label/', 'augmented-dataset/TrainVal.h5')
     
     # Define augmented test data directory
-    augmented_test_data_dir = 'augmented-dataset/Test/color/'
-    augmented_test_label_dir = 'augmented-dataset/Test/label/'
+    augmented_test_data_dir = '/home/matti/Datasets/Augmented-data-raw-images/test/images/'
+    augmented_test_label_dir = '/home/matti/Datasets/Augmented-data-raw-images/test/masks/'
 
     #Fetch filenames in test dataset directory
     test_data_files, test_label_files, test_filenames = fetch_dataset_filenames(image_directory = 'Dataset/Test/color/', label_directory = 'Dataset/Test/label/')
@@ -336,5 +337,5 @@ if __name__ == '__main__':
         save_new_datapoint(cropped_image,cropped_label,augmented_test_data_dir,augmented_test_label_dir,f"{test_filenames[i]}")
 
     #convert all test images in augmented dataset directory to .h5 file
-    convert_to_h5('augmented-dataset/Test/color/', 'augmented-dataset/Test/label/', 'augmented-dataset/Test.h5')
+    #convert_to_h5('augmented-dataset/Test/color/', 'augmented-dataset/Test/label/', 'augmented-dataset/Test.h5')
     
