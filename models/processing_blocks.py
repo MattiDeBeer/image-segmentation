@@ -51,7 +51,7 @@ class ConvBlockUpsample(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.up = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
-        self.conv = ConvBlock(out_channels * 2, out_channels)
+        self.conv = ConvBlock(out_channels , out_channels)
 
     def forward(self, x):
         x = self.up(x)
