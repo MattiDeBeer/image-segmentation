@@ -13,18 +13,16 @@ class UNet(nn.Module):
         # Encoder
         self.enc1 = ConvBlockDownsample(32, 64)   # /2
         self.enc2 = ConvBlockDownsample(64, 128)           # /4
-        self.enc3 = ConvBlockDownsample(128, 256)          # /8
-        self.enc4 = ConvBlockDownsample(256, 512)          # /16
+        self.enc3 = ConvBlockDownsample(128, 256)         # /8
         
         # Bottleneck
-        self.bottleneck = ConvBlock(512, 1024)             # /16
+        self.bottleneck = ConvBlock(256, 512)             # /8
         
-        # Decoder
-        self.dec1 = ConvBlockUpsampleSkip(1024, 512)           # /8
-        self.dec2 = ConvBlockUpsampleSkip(512, 256)            # /4
-        self.dec3 = ConvBlockUpsampleSkip(256, 128)            # /2
-        self.dec4 = ConvBlockUpsampleSkip(128, 64)             # /1
-        self.dec5 = ConvBlockUpsampleSkip(64, 32) 
+    
+        self.dec1 = ConvBlockUpsampleSkip(512, 256)            # /4
+        self.dec2 = ConvBlockUpsampleSkip(256, 128)            # /2
+        self.dec3 = ConvBlockUpsampleSkip(128, 64)             # /1
+        self.dec4 = ConvBlockUpsampleSkip(64, 32) 
 
         self.out = nn.Conv2d(32, out_channels, kernel_size=1, padding=0)
 
@@ -35,15 +33,14 @@ class UNet(nn.Module):
         enc1 = self.enc1(input)
         enc2 = self.enc2(enc1)
         enc3 = self.enc3(enc2)
-        enc4 = self.enc4(enc3)
      
-        bottleneck = self.bottleneck(enc4)
-        dec1 = self.dec1(bottleneck, enc4)
-        dec2 = self.dec2(dec1, enc3)
-        dec3 = self.dec3(dec2, enc2)
-        dec4 = self.dec4(dec3, enc1)
-        dec5 = self.dec5(dec4,input)
-        out = self.out(dec5)
+        bottleneck = self.bottleneck(enc3)
+
+        dec1 = self.dec1(bottleneck, enc3)
+        dec2 = self.dec2(dec1, enc2)
+        dec3 = self.dec3(dec2, enc1)
+        dec4 = self.dec4(dec3,input)
+        out = self.out(dec4)
 
 
         return torch.sigmoid(out)
