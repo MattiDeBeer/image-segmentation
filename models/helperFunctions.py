@@ -88,6 +88,7 @@ def show_datapoint(datapoint):
 
     image = datapoint[0]
     label = datapoint[1]
+    
     plt.figure(figsize=(12,4))
 
     plt.subplot(141)
