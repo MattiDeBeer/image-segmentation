@@ -115,7 +115,7 @@ class ImageDataset3Mask(Dataset):
 
         background_mask = torch.ones_like(cat_mask).to(self.device) - cat_mask - dog_mask
         image = torch.from_numpy(image).to(self.device).permute(2,0,1)
-        label = torch.cat([cat_mask,dog_mask,background_mask],dim=0)
+        label = torch.cat([cat_mask,dog_mask,background_mask],dim=0).float()
 
         return image, label
     
