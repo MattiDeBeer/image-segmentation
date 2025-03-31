@@ -103,5 +103,92 @@ def show_datapoint(datapoint):
     plt.imshow(label[1].cpu(), cmap='gray')
     plt.title('Dog Mask')
 
+    if label.size()[0] >=3:
+        plt.subplot(144)
+        plt.imshow(label[2].cpu(), cmap='gray')
+        plt.title('Background Mask')
+
     plt.show()
+
+def show_prediciton(input,output):
+
+    image = input[0]
+    label = output[0]
+    
+    plt.figure(figsize=(12,4))
+
+    plt.subplot(141)
+    plt.imshow(image.permute(1,2,0).cpu())
+    plt.title('Original Image')
+
+    plt.subplot(142)
+    plt.imshow(label[0].cpu(), cmap='gray')
+    plt.title('Cat Mask')
+
+    plt.subplot(143)
+    plt.imshow(label[1].cpu(), cmap='gray')
+    plt.title('Dog Mask')
+
+    if label.size()[0] >= 3:
+        
+        plt.subplot(144)
+        plt.imshow((label[2]).cpu(), cmap='gray')
+        plt.title('Background Mask')
+
+
+
+    plt.show()
+
+def show_detailed_prediction(input,output):
+    fig, axes = plt.subplots(3, 4, figsize=(12, 9))  # 3 rows, 4 columns
+
+    image = input[0]
+    label = output[0]
+
+    # First row
+    axes[0, 0].imshow(image.permute(1, 2, 0).cpu())
+    axes[0, 0].set_title('Original Image')
+
+    axes[0, 1].imshow(label[0].cpu(), cmap='gray')
+    axes[0, 1].set_title('Cat Mask')
+
+    axes[0, 2].imshow(label[1].cpu(), cmap='gray')
+    axes[0, 2].set_title('Dog Mask')
+
+    axes[0, 3].imshow((label[0] + label[1]).cpu(), cmap='gray')
+    axes[0, 3].set_title('Sum of Masks')
+
+    # Second row (Modify these based on your additional data)
+    axes[1, 0].imshow((label[0].cpu() > 0.25).float(), cmap='gray')
+    axes[1, 0].set_title('Cat uncertianty > 0.25')
+
+    axes[1, 1].imshow((label[0].cpu() > 0.5).float(), cmap='gray')
+    axes[1, 1].set_title('Cat uncertianty > 0.5')
+
+    axes[1, 2].imshow((label[0].cpu() > 0.75).float(), cmap='gray')
+    axes[1, 2].set_title('Cat uncertianty > 0.75')
+
+    axes[1, 3].imshow((label[0].cpu() > 0.9).float(), cmap='gray')
+    axes[1, 3].set_title('Cat uncertianty > 0.95')
+
+    # Third row (Modify these based on your additional data)
+    axes[2, 0].imshow((label[1].cpu() > 0.25).float(), cmap='gray')
+    axes[2, 0].set_title('Dog uncertianty > 0.25')
+
+    axes[2, 1].imshow((label[1].cpu() > 0.5).float(), cmap='gray')
+    axes[2, 1].set_title('Dog uncertianty > 0.5')
+
+    axes[2, 2].imshow((label[1].cpu() > 0.75).float(), cmap='gray')
+    axes[2, 2].set_title('Dog uncertianty > 0.75')
+
+    axes[2, 3].imshow((label[1].cpu() > 0.9).float(), cmap='gray')
+    axes[2, 3].set_title('Dog uncertianty > 0.9')
+
+    # Remove axis labels
+    for ax in axes.flat:
+        ax.axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
 
