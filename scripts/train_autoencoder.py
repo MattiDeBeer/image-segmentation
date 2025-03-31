@@ -20,14 +20,15 @@ from torchsummary import summary
 ###### Hyperparameters ###########
 # Instantiate the autoencoder with matching input/output channels (e.g., RGB: 3)
 model = Autoencoder(in_channels=3, out_channels=3)
-summary(model, input_size=(3, 256, 256))
+#summary(model, input_size=(3, 256, 256))
 
-num_epochs = 10
-batch_size = 4
+num_epochs = 200
+batch_size = 16
 
 # For autoencoder training, we can use a different save folder if desired
-model_save_file = "saved-models/Autoencoders"
-dataset_loc = 'Datasets/Oxford-IIIT-Pet-Augmented'
+model_save_file = "/tmp/saved-models/Autoencoders"
+#dataset_loc = 'Datasets/Oxford-IIIT-Pet-Augmented'
+dataset_loc = "mattidebeer/Oxford-IIIT-Pet-Augmented" #uncomment to load remote dataset
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 ##############################
@@ -36,11 +37,11 @@ save_location = get_next_run_folder(model_save_file)
 
 # Use the same dataset, but note: for autoencoder, the target is the input image.
 # Here we assume ImageDataset returns (image, label) but we will ignore the label.
-train_dataset = DummyDataset()
-validation_dataset = DummyDataset()
+#train_dataset = DummyDataset()
+#validation_dataset = DummyDataset()
 
-#train_dataset = ImageDataset(dataset=dataset_loc, split='train', uncertianty_mask_coeff=0)
-#validation_dataset = ImageDataset(dataset=dataset_loc, split='validation', uncertianty_mask_coeff=0)
+train_dataset = ImageDataset(dataset=dataset_loc, split='train', uncertianty_mask_coeff=0)
+validation_dataset = ImageDataset(dataset=dataset_loc, split='validation', uncertianty_mask_coeff=0)
 
 train_dataloader = DataLoader(train_dataset, batch_size=batch_size)
 validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size)
