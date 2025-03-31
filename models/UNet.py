@@ -5,7 +5,7 @@ from models.processing_blocks import ConvBlockDownsample, ConvBlockUpsampleSkip,
 
 
 class UNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=2):
+    def __init__(self, in_channels=3, out_channels=2, activation = lambda x : torch.nn.functional.softmax(x,dim=1)):
         super().__init__()
         
         self.input = nn.Conv2d(in_channels, 32, kernel_size=1, padding=0)
@@ -26,6 +26,8 @@ class UNet(nn.Module):
 
         self.out = nn.Conv2d(32, out_channels, kernel_size=1, padding=0)
 
+        self.activation = activation
+
 
     def forward(self, x):
         # Encoder
@@ -43,10 +45,10 @@ class UNet(nn.Module):
         out = self.out(dec4)
 
 
-        return torch.sigmoid(out)
+        return self.activation(out)
 
 
 if __name__ == "__main__":
-    model = UNet(in_channels=3,out_channels=2)
+    model = UNet(in_channels=3,out_channels=3)
     out = model(torch.randn(1,3,256,256)).detach().numpy()
     print(out.shape)
