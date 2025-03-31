@@ -110,6 +110,27 @@ def show_datapoint(datapoint):
 
     plt.show()
 
+def show_datapoint_classes(datapoint):
+
+    image = datapoint[0]
+    label = datapoint[1]
+    
+    plt.figure(figsize=(12,4))
+
+    plt.subplot(141)
+    plt.imshow(image.permute(1,2,0).cpu())
+    plt.title('Original Image')
+
+    plt.subplot(142)
+    plt.imshow((label[0].cpu() == 1).float(), cmap='gray')
+    plt.title('Cat Mask')
+
+    plt.subplot(143)
+    plt.imshow((label[0].cpu() == 2).float(), cmap='gray')
+    plt.title('Dog Mask')
+
+    plt.show()
+
 def show_prediciton(input,output):
 
     image = input[0]
@@ -155,8 +176,12 @@ def show_detailed_prediction(input,output):
     axes[0, 2].imshow(label[1].cpu(), cmap='gray')
     axes[0, 2].set_title('Dog Mask')
 
-    axes[0, 3].imshow((label[0] + label[1]).cpu(), cmap='gray')
-    axes[0, 3].set_title('Sum of Masks')
+    if label.size()[0] >= 3:
+        axes[0, 3].imshow((label[2]).cpu(), cmap='gray')
+        axes[0, 3].set_title('Background mask')
+    else:
+        axes[0, 3].imshow((label[0] + label[1]).cpu(), cmap='gray')
+        axes[0, 3].set_title('Sum of Masks')
 
     # Second row (Modify these based on your additional data)
     axes[1, 0].imshow((label[0].cpu() > 0.25).float(), cmap='gray')
