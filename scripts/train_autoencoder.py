@@ -15,13 +15,15 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 from tqdm import tqdm  # For progress bar
+from torchsummary import summary
 
 ###### Hyperparameters ###########
 # Instantiate the autoencoder with matching input/output channels (e.g., RGB: 3)
 model = Autoencoder(in_channels=3, out_channels=3)
+summary(model, input_size=(3, 256, 256))
 
 num_epochs = 10
-batch_size = 32
+batch_size = 4
 
 # For autoencoder training, we can use a different save folder if desired
 model_save_file = "saved-models/Autoencoders"
