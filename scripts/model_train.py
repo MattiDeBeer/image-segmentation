@@ -1,5 +1,5 @@
 
-from customDatasets.datasets import ImageDataset, DummyDataset
+from customDatasets.datasets import ImageDataset, DummyDataset, ImageDataset3Mask
 from models.UNet import UNet
 from torch.utils.data import DataLoader
 from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header,log_loss_to_csv
@@ -10,35 +10,37 @@ from tqdm import tqdm  # For progress bar
 
 
 ###### Hyperperameters ###########
-model = UNet()
+model = UNet(out_channels = 3)
 
-num_epochs = 10
-batch_size = 32
+num_epochs = 250
+batch_size = 16
 
-uncertianty_mask_coefficient = 0.5
+uncertianty_mask_coefficient = 0.7
 
-model_save_file = "saved-models/UNets"
-dataset_loc = '../../Datasets/Oxford-IIIT-Pet-Augmented'
+model_save_file = "/tmp/im-seg-res/UNets3Mask"
+#dataset_loc = '../../Datasets/Oxford-IIIT-Pet-Augmented'
 
-#dataset_loc = "mattidebeer/Oxford-IIIT-Pet-Augmented" #uncomment to load remote dataset
+dataset_loc = "mattidebeer/Oxford-IIIT-Pet-Augmented" #uncomment to load remote dataset
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 ##############################
 
+# Clear unused memory from the cache
+torch.cuda.empty_cache()
+
 save_location = get_next_run_folder(model_save_file)
 
-train_dataset = ImageDataset(dataset=dataset_loc,split='train', uncertianty_mask_coeff=uncertianty_mask_coefficient)
-validation_dataset = ImageDataset(dataset=dataset_loc,split='validation', uncertianty_mask_coeff=0.5)
+train_dataset = ImageDataset3Mask(dataset=dataset_loc,split='train', uncertianty_mask_coeff=uncertianty_mask_coefficient)
+validation_dataset = ImageDataset3Mask(dataset=dataset_loc,split='validation', uncertianty_mask_coeff=0)
 
 train_dataloader = DataLoader(train_dataset,batch_size = batch_size)
 validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size)
 
-if torch.cuda.is_available():
-    model = torch.compile(model)  # Compile first
-    model.to(device)  # Then move to GPU
+model = torch.compile(model)
+model.to(device)  # Then move to GPU
 
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-criterion = nn.BCELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
+criterion = nn.functional.kl_div
 
 save_training_info(model,
                    optimizer,
@@ -64,7 +66,7 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
         
         # Forward pass
         outputs = model(inputs)
-        loss = criterion(outputs, targets)  # Compute the loss
+        loss = criterion(torch.nn.functional.log_softmax(outputs,dim=1), targets, reduction='batchmean')  # Compute the loss
         
         # Backward pass and optimization
         loss.backward()
@@ -90,7 +92,7 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
             
             # Forward pass (no need for backward or optimizer step)
             outputs = model(inputs)
-            loss = criterion(outputs, targets)  # Compute the loss
+            loss = criterion(torch.nn.functional.log_softmax(outputs,dim=1), targets , reduction='batchmean')  # Compute the loss
             
             # Track the loss
             running_val_loss += loss.item()
