@@ -178,3 +178,6 @@ cython_debug/
 
 #models
 saved-models/
+
+#testing script
+test_script.py
