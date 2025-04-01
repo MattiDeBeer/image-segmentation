@@ -120,7 +120,7 @@ def train_distributed(rank, world_size):
     dataset_loc = "mattidebeer/Oxford-IIIT-Pet-Augmented"
 
     ## for cluster
-    dataset_loc = "Dataset/Oxford-IIIT-Pet-Augmented"
+    #dataset_loc = "Dataset/Oxford-IIIT-Pet-Augmented"
 
     ######################
 
