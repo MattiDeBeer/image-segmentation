@@ -108,13 +108,20 @@ def write_csv_header(csv_path):
     if not os.path.exists(csv_file):
         with open(csv_file, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(['Epoch', 'Train Loss', 'Validation Loss'])
+            writer.writerow(['Epoch', 'Train Loss', 'Validation Loss', 
+                           'Val Pixel Accuracy',
+                           'Val Mean Dice',
+                           'Val IoU'])
 
-def log_loss_to_csv(epoch, train_loss, val_loss, csv_path):
+def log_loss_to_csv(epoch, train_loss, val_loss, val_pixel_acc, 
+                    val_dice, val_iou, csv_path):
     csv_file = csv_path + 'loss.csv'
     with open(csv_file, mode='a', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow([epoch, train_loss, val_loss])
+        writer.writerow([epoch, train_loss, val_loss,
+                        val_pixel_acc,
+                        val_dice,
+                        val_iou])
 
 def show_datapoint(datapoint):
 
