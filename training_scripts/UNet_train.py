@@ -1,31 +1,34 @@
-
-from customDatasets.datasets import ImageDataset, DummyDataset, ImageDataset3Mask, ImageDatasetClasses
+from customDatasets.datasets import ImageDatasetClasses
 from models.UNet import UNet
 from torch.utils.data import DataLoader
 from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header,log_loss_to_csv
 import torch
 import torch.optim as optim
-import torch.nn as nn
-from tqdm import tqdm  # For progress bar
-from models.losses import HybridLoss, IoULoss, PixelAccuracyLoss, DiceLoss
+from tqdm import tqdm
+from models.losses import *
 
 
 ###### Hyperperameters ###########
 model = UNet(out_channels = 3)
 
-num_epochs = 2
-batch_size = 100
+num_epochs = 1
+batch_size = 120
 
 uncertianty_mask_coefficient = 0
 
-model_save_file = "saved-models/UNet-hybrid-loss"
+model_save_file = "saved-models/Unets"
+
+## for Cluster
 dataset_loc = 'Dataset/Oxford-IIIT-Pet-Augmented'
 
+## for DICE computers
 #dataset_loc = "mattidebeer/Oxford-IIIT-Pet-Augmented" #uncomment to load remote dataset
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-disable_tqdm = True
+tqdm_disable = False
+
+torch.set_float32_matmul_precision('high')
 ##############################
 
 # Clear unused memory from the cache
@@ -47,18 +50,21 @@ model.to(device)  # Then move to GPU
 optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
 criterion = HybridLoss()
 
+num_params = sum(p.numel() for p in model.parameters())
+
 save_training_info(model,
                    optimizer,
                    criterion,
                    train_dataloader,
                    validation_dataloader,
                    save_location, 
-                   extra_params = {'uncertianty_mask_coefficient' : uncertianty_mask_coefficient})
+                   extra_params = {'uncertianty_mask_coefficient' : uncertianty_mask_coefficient,
+                                   'num_params' : num_params})
 
 
 write_csv_header(save_location)
 
-for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False):
+for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False, disable=tqdm_disable):
 
     model.train()
     running_loss = 0.0
@@ -127,6 +133,7 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
     log_loss_to_csv(epoch,avg_train_loss,avg_val_loss, avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss, save_location)
 
     torch.save(model.state_dict(), f'{save_location}model_{epoch+1}.pth')
+
 
 
 
