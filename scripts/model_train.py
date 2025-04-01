@@ -17,7 +17,7 @@ model = UNet(out_channels = 3)
 num_epochs = 250
 batch_size = 128
 
-#uncertianty_mask_coefficient = 0.7
+uncertianty_mask_coefficient = 0
 
 model_save_file = "saved-models/UNet-hybrid-loss"
 dataset_loc = '../../Datasets/Oxford-IIIT-Pet-Augmented'
@@ -43,7 +43,7 @@ validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size)
 
 
 
-model = torch.compile(model)
+model = torch.compile(model, mode="max-autotune")
 model.to(device)  # Then move to GPU
 
 optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
@@ -60,8 +60,6 @@ save_training_info(model,
 
 write_csv_header(save_location)
 
-scaler = GradScaler()
-
 for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False):
 
     model.train()
@@ -75,14 +73,12 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
         optimizer.zero_grad()  # Zero gradients from the previous step
         
         # Forward pass
-        with autocast():
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)  # Compute the loss
+        outputs = model(inputs)
+        loss = criterion(outputs, targets)  # Compute the loss
         
         # Backward pass and optimization
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
+        loss.backward()
+        optimizer.step()
         
         # Track the loss
         running_loss += loss.item()
@@ -101,15 +97,14 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
         for inputs, targets in tqdm(validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False):
             inputs, targets = inputs.to(device), targets.to(device)  # Move data to device
             
-            with autocast():
-                # Forward pass
-                outputs = model(inputs)
-                
-                # Calculate different losses
-                hybrid_loss = criterion(outputs, targets)
-                iou_loss = IoULoss()(outputs, targets)
-                pixel_acc_loss = PixelAccuracyLoss()(outputs, targets)
-                dice_loss = DiceLoss()(outputs, targets)
+            # Forward pass
+            outputs = model(inputs)
+            
+            # Calculate different losses
+            hybrid_loss = criterion(outputs, targets)
+            iou_loss = IoULoss()(outputs, targets)
+            pixel_acc_loss = PixelAccuracyLoss()(outputs, targets)
+            dice_loss = DiceLoss()(outputs, targets)
             
             # Track the losses
             running_val_loss += hybrid_loss.item()
