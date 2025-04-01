@@ -129,9 +129,9 @@ def train_distributed(rank, world_size):
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=4, pin_memory=True)
 
     #compile model and wrap with DDP
-    model = torch.compile(model)
     model = model.cuda(rank)  # Move to the correct device
     model = DDP(model, device_ids=[rank])
+    model = torch.compile(model)
 
     #Optimizer and loss
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
