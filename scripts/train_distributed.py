@@ -23,7 +23,7 @@ def loss_function(outputs,targets,criterion):
     return criterion(outputs,targets)
 
 def train(num_epochs, model, dataloader,rank, train_sampler,optimizer,criterion,save_location, validation_dataloader):
-    scaler = GradScaler(device_type='cuda')
+
     for epoch in range(0,num_epochs):
 
         running_loss = 0
@@ -40,18 +40,17 @@ def train(num_epochs, model, dataloader,rank, train_sampler,optimizer,criterion,
                 loss = loss_function(outputs,labels,criterion)
 
             # add mixed precision training
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
+            loss.backward()
+            optimizer.step()
             
             running_loss += loss.item()
-
-        dist.barrier()
         
         val_loss, avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss  = validate(model,validation_dataloader,criterion,rank)
         train_loss = running_loss / len(dataloader)
 
         tqdm.write(f"Rank {rank}, Epoch {epoch}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+
+        dist.barrier()
 
         if rank == 0:
             log_loss_to_csv(epoch,train_loss,val_loss,avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss,save_location)
