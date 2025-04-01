@@ -83,9 +83,8 @@ class ClipFeatureExtractor(nn.Module):
     def forward(self, X):
 
         device = self.clip_model.device  # Ensure we get the correct device
-        inputs = self.clip_processor(images=X.to('cpu'), return_tensors="pt", do_rescale=False)
-        print(inputs.device())
-        inputs.to(device)
+        inputs = self.clip_processor(images=X, return_tensors="pt", do_rescale=False)
+        #inputs.to(device)
 
         if not self.train_clip:
             with torch.no_grad():
