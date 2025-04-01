@@ -127,7 +127,7 @@ def train(rank, world_size):
     val_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=4, pin_memory=True)
 
     #compile model and wrap with DDP
-    model = torch.compile(model)
+    model = torch.compile(model).to('cuda')
     model = DDP(model, device_ids=[rank])
 
     #Optimizer and loss
