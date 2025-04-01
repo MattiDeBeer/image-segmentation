@@ -11,7 +11,7 @@ from models.losses import *
 ###### Hyperperameters ###########
 model = UNet(out_channels = 3)
 
-num_epochs = 1
+num_epochs = 250
 batch_size = 120
 
 uncertianty_mask_coefficient = 0
