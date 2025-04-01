@@ -81,10 +81,12 @@ class ClipFeatureExtractor(nn.Module):
             param.requires_grad = value
 
     def forward(self, X):
+
         device = self.clip_model.device  # Ensure we get the correct device
 
-        inputs = self.clip_processor(images=X, return_tensors="pt", do_rescale=False)
-        inputs = {k: v.to(device, non_blocking=True) for k, v in inputs.items()}
+        inputs = self.clip_processor(images=X.to('cpu'), return_tensors="pt", do_rescale=False)
+        
+        inputs.to('cuda' if torch.cuda.is_available() else 'cpu')
 
         if not self.train_clip:
             with torch.no_grad():
