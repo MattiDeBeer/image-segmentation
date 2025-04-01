@@ -23,7 +23,7 @@ def loss_function(outputs,targets,criterion):
     return criterion(outputs,targets)
 
 def train(num_epochs, model, dataloader,rank, train_sampler,optimizer,criterion,save_location, validation_dataloader):
-    scaler = GradScaler('cuda')
+    scaler = GradScaler(device_type='cuda')
     for epoch in range(0,num_epochs):
 
         running_loss = 0
@@ -35,7 +35,7 @@ def train(num_epochs, model, dataloader,rank, train_sampler,optimizer,criterion,
 
             optimizer.zero_grad()
 
-            with autocast():
+            with autocast(device_type='cuda'):
                 outputs = model(images)
                 loss = loss_function(outputs,labels,criterion)
 
@@ -75,7 +75,7 @@ def validate(model, validation_dataloader, criterion, rank):
             inputs, targets = inputs.cuda(rank), targets.cuda(rank)  # Move data to device
             
             # Forward pass
-            with autocast():
+            with autocast(device_type = 'cuda'):
                 outputs = model(inputs)
             
                 # Calculate different losses
