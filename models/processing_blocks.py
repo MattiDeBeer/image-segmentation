@@ -65,30 +65,20 @@ class ConvBlockUpsample(nn.Module):
 class CustomClipPreprocessor(nn.Module):
     def __init__(self, mean, std, target_size=(224, 224)):
         super().__init__()
-        
-        # Define the image transformations
-        self.transform = transforms.Compose([
-            transforms.Resize(target_size),  # Resize the image
-            transforms.ToTensor(),           # Convert to tensor
-            transforms.Normalize(mean=mean, std=std)  # Normalize the image
-        ])
+
+        self.resize = transforms.Resize(target_size)
+        self.normalize = transforms.Normalize(mean=mean, std=std)
 
     def forward(self, images):
-        # Assume `images` is a batch of PIL images on the CPU
-        # Move the images to the correct device (GPU if available)
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        
-        # Apply the transformations
+
         transformed_images = []
         for img in images:
-            # Apply the transformation to each image in the batch
-            img = self.transform(img).to(device)  # Move each image to the device
+            img = self.resize(img)
+            img = self.normalize(img)
             transformed_images.append(img)
 
-        # Stack the transformed images into a batch
         return torch.stack(transformed_images)
-
-# Example usage in the ClipFeatureExtractor
+    
 
 class ClipFeatureExtractor(nn.Module):
     def __init__(self, train=False):
