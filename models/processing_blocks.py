@@ -11,6 +11,7 @@ from torch import cat
 import torch.nn.functional as F
 from transformers import CLIPProcessor, CLIPModel
 import torchvision.models as models
+import torchvision.transforms as transforms
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, padding=1):
@@ -61,38 +62,69 @@ class ConvBlockUpsample(nn.Module):
         return self.conv(x)
         
 
+class CustomClipPreprocessor(nn.Module):
+    def __init__(self, mean, std, target_size=(224, 224)):
+        super().__init__()
+        
+        # Define the image transformations
+        self.transform = transforms.Compose([
+            transforms.Resize(target_size),  # Resize the image
+            transforms.ToTensor(),           # Convert to tensor
+            transforms.Normalize(mean=mean, std=std)  # Normalize the image
+        ])
+
+    def forward(self, images):
+        # Assume `images` is a batch of PIL images on the CPU
+        # Move the images to the correct device (GPU if available)
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        
+        # Apply the transformations
+        transformed_images = []
+        for img in images:
+            # Apply the transformation to each image in the batch
+            img = self.transform(img).to(device)  # Move each image to the device
+            transformed_images.append(img)
+
+        # Stack the transformed images into a batch
+        return torch.stack(transformed_images)
+
+# Example usage in the ClipFeatureExtractor
+
 class ClipFeatureExtractor(nn.Module):
-    
     def __init__(self, train=False):
         super().__init__()
 
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # Device setup
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
-        self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32", use_fast = False)
+        # Initialize the custom preprocessor (for resizing and normalization)
+        mean = [0.48145466, 0.4578275, 0.40821073]  # CLIP mean
+        std = [0.26862954, 0.26130258, 0.27577711]   # CLIP std
+        self.custom_preprocessor = CustomClipPreprocessor(mean=mean, std=std)
 
+        # Load the CLIP model onto the GPU
+        self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(self.device)
+
+        # Set training mode
         self.train_clip = train
         self.train(train)
-    
+
     def set_train(self, value: bool):
         assert isinstance(value, bool), "Value must be a boolean"
-
         for param in self.clip_model.parameters():
             param.requires_grad = value
+        self.train_clip = value
 
     def forward(self, X):
+        # Apply the custom preprocessor (resize and normalize images)
+        inputs = self.custom_preprocessor(X)
 
-        device = self.clip_model.device  # Ensure we get the correct device
-        inputs = self.clip_processor(images=X, return_tensors="pt", do_rescale=False)
-        inputs.to(device)
-
-        print(inputs.device)
-
-        if not self.train_clip:
-            with torch.no_grad():
-                image_features = self.clip_model.get_image_features(**inputs)
+        # Pass the preprocessed inputs to the CLIP model and get the features
+        if self.train_clip:
+            image_features = self.clip_model.get_image_features(pixel_values=inputs)
         else:
-            image_features = self.clip_model.get_image_features(**inputs)
+            with torch.no_grad():
+                image_features = self.clip_model.get_image_features(pixel_values=inputs)
 
         return image_features
 
