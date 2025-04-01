@@ -69,7 +69,7 @@ class ClipFeatureExtractor(nn.Module):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
-        self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32", use_fast = True)
+        self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32", use_fast = False)
 
         self.train_clip = train
         self.train(train)
