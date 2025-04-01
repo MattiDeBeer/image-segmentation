@@ -114,9 +114,13 @@ def train_distributed(rank, world_size):
 
     model_save_file = "saved-models/Test"
 
-    batch_size = 256
-
     num_workers = 2
+
+    ### for dice computers
+    dataset_loc = "mattidebeer/Oxford-IIIT-Pet-Augmented"
+
+    ## for cluster
+    dataset_loc = "Dataset/Oxford-IIIT-Pet-Augmented"
 
     ######################
 
@@ -124,8 +128,8 @@ def train_distributed(rank, world_size):
     torch.cuda.empty_cache()
 
     #load datasets
-    train_dataset = ImageDatasetClasses(dataset="mattidebeer/Oxford-IIIT-Pet-Augmented",split='train')
-    val_dataset = ImageDatasetClasses(dataset="mattidebeer/Oxford-IIIT-Pet-Augmented",split='validation')
+    train_dataset = ImageDatasetClasses(dataset=dataset_loc,split='train')
+    val_dataset = ImageDatasetClasses(dataset=dataset_loc,split='validation')
 
     #load datasets
     #train_dataset = DummyDataset(label_channels=1, length = 500)
