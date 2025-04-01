@@ -60,9 +60,10 @@ class ConvBlockUpsample(nn.Module):
         x = self.up(x)
         return self.conv(x)
         
+
 class ClipFeatureExtractor(nn.Module):
     
-    def __init__(self,train = False):
+    def __init__(self, train=False):
         super().__init__()
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -73,24 +74,26 @@ class ClipFeatureExtractor(nn.Module):
         self.train_clip = train
         self.train(train)
     
-    def set_train(self,value : bool):
-
-        assert isinstance(value,bool), "Value must be a boolean"
+    def set_train(self, value: bool):
+        assert isinstance(value, bool), "Value must be a boolean"
 
         for param in self.clip_model.parameters():
-                param.requires_grad = value
+            param.requires_grad = value
 
-    def forward(self,X):
+    def forward(self, X):
+        device = self.clip_model.device  # Ensure we get the correct device
 
-        inputs = self.clip_processor(images=X, return_tensors="pt",do_rescale =False)
+        inputs = self.clip_processor(images=X, return_tensors="pt", do_rescale=False)
+        inputs = {k: v.to(device) for k, v in inputs.items()}  # Move to same device
 
-        if not self.train:
+        if not self.train_clip:
             with torch.no_grad():
                 image_features = self.clip_model.get_image_features(**inputs)
         else:
             image_features = self.clip_model.get_image_features(**inputs)
 
         return image_features
+
     
 class ResNet34FeatureExtractor(nn.Module):
 
