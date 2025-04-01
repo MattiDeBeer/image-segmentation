@@ -35,7 +35,7 @@ def train(num_epochs, model, dataloader,rank, train_sampler,optimizer,criterion,
 
             optimizer.zero_grad()
 
-            with autocast('cuda'):
+            with autocast():
                 outputs = model(images)
                 loss = loss_function(outputs,labels,criterion)
 
@@ -75,7 +75,7 @@ def validate(model, validation_dataloader, criterion, rank):
             inputs, targets = inputs.cuda(rank), targets.cuda(rank)  # Move data to device
             
             # Forward pass
-            with autocast('cuda'):
+            with autocast():
                 outputs = model(inputs)
             
                 # Calculate different losses
