@@ -1,4 +1,3 @@
-
 from customDatasets.datasets import ImageDataset, DummyDataset, ImageDataset3Mask, ImageDatasetClasses
 from models.UNet import UNet
 from torch.utils.data import DataLoader
@@ -8,6 +7,7 @@ import torch.optim as optim
 import torch.nn as nn
 from tqdm import tqdm  # For progress bar
 from models.losses import HybridLoss, IoULoss, PixelAccuracyLoss, DiceLoss
+from torch.cuda.amp import autocast, GradScaler
 
 
 ###### Hyperperameters ###########
@@ -18,7 +18,8 @@ batch_size = 100
 
 uncertianty_mask_coefficient = 0
 
-model_save_file = "saved-models/UNet-hybrid-loss"
+model_save_file = "saved-models/CLIP_models"
+
 dataset_loc = 'Dataset/Oxford-IIIT-Pet-Augmented'
 
 #dataset_loc = "mattidebeer/Oxford-IIIT-Pet-Augmented" #uncomment to load remote dataset
@@ -127,10 +128,3 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
     log_loss_to_csv(epoch,avg_train_loss,avg_val_loss, avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss, save_location)
 
     torch.save(model.state_dict(), f'{save_location}model_{epoch+1}.pth')
-
-
-
-
-
-
-
