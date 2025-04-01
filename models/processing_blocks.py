@@ -84,7 +84,7 @@ class ClipFeatureExtractor(nn.Module):
 
         device = self.clip_model.device  # Ensure we get the correct device
         inputs = self.clip_processor(images=X.to('cpu'), return_tensors="pt", do_rescale=False)
-        print(inputs.device)
+        print(inputs.device())
         inputs.to(device)
 
         if not self.train_clip:
