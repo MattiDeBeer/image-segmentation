@@ -96,7 +96,7 @@ class ImageDatasetClasses(Dataset):
         image = torch.from_numpy(image).permute(2,0,1)
         label = cat_mask + dog_mask
 
-        return image, label
+        return image, label.squeeze(1)
     
     # Helper function to deserialize numpy arrays from byte data
     def _deserialize_numpy(self,byte_data, shape=(256,256,3), dtype=np.uint8):
