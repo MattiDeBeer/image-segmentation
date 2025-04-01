@@ -1,17 +1,14 @@
-from customDatasets.datasets import ImageDataset, DummyDataset, ImageDataset3Mask, ImageDatasetClasses
-from models.CLIP_models import CLIPModel
+from customDatasets.datasets import ImageDatasetClasses
+from models.CLIP_models import ClipUnet
 from torch.utils.data import DataLoader
 from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header,log_loss_to_csv
 import torch
 import torch.optim as optim
-import torch.nn as nn
-from tqdm import tqdm  # For progress bar
-from models.losses import HybridLoss, IoULoss, PixelAccuracyLoss, DiceLoss
-from torch.cuda.amp import autocast, GradScaler
+from tqdm import tqdm
 
 
 ###### Hyperperameters ###########
-model = CLIPModel(out_channels = 3)
+model = ClipUnet(out_channels = 3)
 
 num_epochs = 1
 batch_size = 4
