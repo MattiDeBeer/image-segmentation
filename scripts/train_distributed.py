@@ -21,7 +21,7 @@ def setup(rank, world_size):
 def loss_function(outputs,targets,criterion):
     return criterion(outputs,targets)
 
-def train(num_epochs, model, dataloader, rank, train_sampler,optimizer,criterion,save_location, validation_dataloader):
+def train(num_epochs, model, dataloader,rank, train_sampler,optimizer,criterion,save_location, validation_dataloader):
     for epoch in range(0,num_epochs):
 
         running_loss = 0
@@ -38,13 +38,15 @@ def train(num_epochs, model, dataloader, rank, train_sampler,optimizer,criterion
             optimizer.step()
             
             running_loss += loss.item()
+
+        dist.barrier()
         
         val_loss, avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss  = validate(model,validation_dataloader,criterion,rank)
         train_loss = running_loss / len(dataloader)
 
         tqdm.write(f"Rank {rank}, Epoch {epoch}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
 
-        if rank == 1:
+        if rank == 0:
             log_loss_to_csv(epoch,train_loss,val_loss,avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss,save_location)
             torch.save(model.state_dict(), f'{save_location}model_{epoch+1}.pth')
 
@@ -63,7 +65,7 @@ def validate(model, validation_dataloader, criterion, rank):
     
     with torch.no_grad():  # No gradients needed during validation
         for inputs, targets in tqdm(validation_dataloader, desc=f"Validation",leave=False):
-            inputs, targets = inputs.cuda(rank), targets.cude(rank)  # Move data to device
+            inputs, targets = inputs.cuda(rank), targets.cuda(rank)  # Move data to device
             
             # Forward pass
             outputs = model(inputs)
@@ -89,7 +91,7 @@ def validate(model, validation_dataloader, criterion, rank):
     return avg_val_loss, avg_pixel_acc_loss,avg_dice_loss,avg_iou_loss
 
 #training loop
-def train(rank, world_size):
+def train_distributed(rank, world_size):
 
     setup(rank, world_size)
 
@@ -124,10 +126,11 @@ def train(rank, world_size):
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=True)
 
     val_sampler = DistributedSampler(val_dataset, num_replicas=world_size, rank=rank, shuffle=True)
-    val_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=4, pin_memory=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=4, pin_memory=True)
 
     #compile model and wrap with DDP
-    model = torch.compile(model).to('cuda')
+    model = torch.compile(model)
+    model = model.cuda(rank)  # Move to the correct device
     model = DDP(model, device_ids=[rank])
 
     #Optimizer and loss
@@ -154,5 +157,5 @@ def train(rank, world_size):
 #multi gpu entry point
 if __name__ == "__main__":
     world_size = torch.cuda.device_count()
-    mp.spawn(train, args=(world_size,), nprocs=world_size)
+    mp.spawn(train_distributed, args=(world_size,), nprocs=world_size)
 
