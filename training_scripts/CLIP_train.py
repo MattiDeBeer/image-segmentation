@@ -1,5 +1,5 @@
 from customDatasets.datasets import ImageDataset, DummyDataset, ImageDataset3Mask, ImageDatasetClasses
-from models.UNet import UNet
+from models.CLIP_models import CLIPModel
 from torch.utils.data import DataLoader
 from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header,log_loss_to_csv
 import torch
@@ -11,7 +11,7 @@ from torch.cuda.amp import autocast, GradScaler
 
 
 ###### Hyperperameters ###########
-model = UNet(out_channels = 3)
+model = CLIPModel(out_channels = 3)
 
 num_epochs = 1
 batch_size = 4
@@ -50,13 +50,16 @@ model.to(device)  # Then move to GPU
 optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
 criterion = HybridLoss()
 
+num_params = sum(p.numel() for p in model.parameters())
+
 save_training_info(model,
                    optimizer,
                    criterion,
                    train_dataloader,
                    validation_dataloader,
                    save_location, 
-                   extra_params = {'uncertianty_mask_coefficient' : uncertianty_mask_coefficient})
+                   extra_params = {'uncertianty_mask_coefficient' : uncertianty_mask_coefficient,
+                                   'num_params' : num_params})
 
 
 write_csv_header(save_location)
