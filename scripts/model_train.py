@@ -69,7 +69,7 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
     
     # Training loop
     for inputs, targets in tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False):
-        
+        inputs, targets = inputs.to(device), targets.to(device)  # Move data to device
         optimizer.zero_grad()  # Zero gradients from the previous step
         
         # Forward pass
