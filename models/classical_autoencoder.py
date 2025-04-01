@@ -19,7 +19,6 @@ class Encoder(nn.Module):
         self.enc1 = ConvBlockDownsample(32, 64)   # /2
         self.enc2 = ConvBlockDownsample(64, 64)   # /4 
         self.enc3 = ConvBlockDownsample(64, 64)   # /8
-        self.enc4 = ConvBlockDownsample(64,64)      # /16
        
         # Bottleneck
         self.bottleneck = ConvBlock(64, 64)       # /16
@@ -29,11 +28,11 @@ class Encoder(nn.Module):
         x1 = self.enc1(x0)
         x2 = self.enc2(x1)
         x3 = self.enc3(x2)
-        x4 = self.enc4(x3)
+
        
-        bottleneck = self.bottleneck(x4)  # Note lowercase 'b'
+        bottleneck = self.bottleneck(x3)  
         #return bottleneck
-        return {"x0": x0, "enc1": x1, "enc2": x2, "enc3": x3, "enc4": x4,  "bottleneck": bottleneck} #for use in segmentation decoder only
+        return {"x0": x0, "enc1": x1, "enc2": x2, "enc3": x3,  "bottleneck": bottleneck} #for use in segmentation decoder only
 
        
 class Decoder(nn.Module):
@@ -41,16 +40,14 @@ class Decoder(nn.Module):
         super().__init__()
         self.dec1 = ConvBlockUpsample(64, 64)    # /4
         self.dec2 = ConvBlockUpsample(64, 64)   
-        self.dec3 = ConvBlockUpsample(64, 64)   
-        self.dec4 = ConvBlockUpsample(64, 32)     # /1
+        self.dec3 = ConvBlockUpsample(64, 32)     # /1
         self.out = nn.Conv2d(32, out_channels, kernel_size=1, padding=0)
 
     def forward(self, bottleneck):
         d1 = self.dec1(bottleneck)
         d2 = self.dec2(d1)
         d3 = self.dec3(d2)
-        d4 = self.dec4(d3)
-        out = self.out(d4)
+        out = self.out(d3)
         return out
 
 class Autoencoder(nn.Module):
