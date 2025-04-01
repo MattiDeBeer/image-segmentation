@@ -118,7 +118,7 @@ class ResNet34FeatureExtractor(nn.Module):
         return out
     
 class CrossAttentionFusion(nn.Module):
-    def __init__(self, resnet_channels, clip_feats_dim = 512, num_heads=4):
+    def __init__(self, resnet_channels, num_heads=4):
         super().__init__()
         self.cross_attn = nn.MultiheadAttention(embed_dim=resnet_channels, num_heads=num_heads)
 
