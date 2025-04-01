@@ -22,6 +22,7 @@ class IoULoss(nn.Module):
         preds: (B, C, H, W) - predicted probability maps (softmax applied)
         targets: (B, H, W) - ground truth labels (long tensor)
         """
+        preds = nn.functional.softmax(preds,dim=1)
         num_classes = preds.shape[1]
         preds = torch.argmax(preds, dim=1)  # Convert softmax output to class indices
         
@@ -49,7 +50,7 @@ class DiceLoss(nn.Module):
         targets: (B, H, W) - ground truth labels (long tensor)
         """
         num_classes = preds.shape[1]
-        preds = torch.softmax(preds, dim=1)  # Ensure softmax probabilities
+        preds = torch.nn.functional.softmax(preds, dim=1)  # Ensure softmax probabilities
         targets_onehot = torch.nn.functional.one_hot(targets, num_classes).permute(0, 3, 1, 2).float()
 
         dice_per_class = []
@@ -74,6 +75,7 @@ class PixelAccuracyLoss(nn.Module):
         preds: (B, C, H, W) - predicted probability maps (softmax applied)
         targets: (B, H, W) - ground truth labels (long tensor)
         """
+        preds = nn.functional.softmax(preds,dim=1)
         preds = torch.argmax(preds, dim=1)  # Convert softmax output to class indices
         correct = (preds == targets).float().mean()  # Compute accuracy
 
