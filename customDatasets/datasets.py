@@ -90,13 +90,13 @@ class ImageDatasetClasses(Dataset):
         image = self._deserialize_numpy(datapoint['image'])
         image = image.astype(np.float32) / 255.0
         mask = self._deserialize_numpy(datapoint['mask'],shape=(256,256))
-        cat_mask = torch.from_numpy(np.where(mask == 38,1,0)).unsqueeze(0).long() #cat
-        dog_mask = torch.from_numpy(np.where(mask == 75,2,0)).unsqueeze(0).long() #dog
+        cat_mask = torch.from_numpy(np.where(mask == 38,1,0)).long() #cat
+        dog_mask = torch.from_numpy(np.where(mask == 75,2,0)).long() #dog
 
         image = torch.from_numpy(image).permute(2,0,1)
         label = cat_mask + dog_mask
 
-        return image, label.squeeze(1)
+        return image, label
     
     # Helper function to deserialize numpy arrays from byte data
     def _deserialize_numpy(self,byte_data, shape=(256,256,3), dtype=np.uint8):
