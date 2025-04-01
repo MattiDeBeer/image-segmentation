@@ -7,8 +7,40 @@ import csv
 def save_training_info(model, optimizer, loss_fn, train_dataloader, val_dataloader, file_path, extra_params=None):
     # Save the model structure (layers) as a dictionary
     model_structure = {}
-    for name, module in model.named_children():  # Iterate over each child module/layer
-        model_structure[name] = str(module.__class__.__name__)  # Save layer type (e.g., Conv2d, Linear, etc.)
+    for name, module in model.named_modules():  # Use named_modules instead of named_children to get all layers
+        layer_info = {
+            'type': str(module.__class__.__name__)
+        }
+        
+        # Add specific hyperparameters based on layer type
+        if hasattr(module, 'in_channels'):
+            layer_info['in_channels'] = module.in_channels
+        if hasattr(module, 'out_channels'):
+            layer_info['out_channels'] = module.out_channels
+        if hasattr(module, 'kernel_size'):
+            layer_info['kernel_size'] = module.kernel_size if isinstance(module.kernel_size, int) else list(module.kernel_size)
+        if hasattr(module, 'num_heads'):
+            layer_info['num_heads'] = module.num_heads
+        if hasattr(module, 'dropout'):
+            layer_info['dropout'] = module.dropout
+        if hasattr(module, 'padding'):
+            layer_info['padding'] = module.padding if isinstance(module.padding, int) else list(module.padding)
+        # Linear layer parameters
+        if hasattr(module, 'in_features'):
+            layer_info['in_features'] = module.in_features
+        if hasattr(module, 'out_features'):
+            layer_info['out_features'] = module.out_features
+        # Multi-head attention parameters
+        if hasattr(module, 'embed_dim'):
+            layer_info['embed_dim'] = module.embed_dim
+        if hasattr(module, 'head_dim'):
+            layer_info['head_dim'] = module.head_dim
+        if hasattr(module, 'kdim'):
+            layer_info['key_dim'] = module.kdim
+        if hasattr(module, 'vdim'):
+            layer_info['value_dim'] = module.vdim
+        
+        model_structure[name] = layer_info
     
     # Save the optimizer structure (param_groups, etc.)
     optimizer_structure = {
