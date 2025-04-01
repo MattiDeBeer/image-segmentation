@@ -11,8 +11,8 @@ from models.losses import *
 ###### Hyperperameters ###########
 model = ClipResSegmentationModel(out_channels = 3)
 
-num_epochs = 1
-batch_size = 4
+num_epochs = 250
+batch_size = 16
 
 uncertianty_mask_coefficient = 0
 
