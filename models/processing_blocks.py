@@ -86,6 +86,8 @@ class ClipFeatureExtractor(nn.Module):
         inputs = self.clip_processor(images=X, return_tensors="pt", do_rescale=False)
         inputs.to(device)
 
+        print(inputs.device)
+
         if not self.train_clip:
             with torch.no_grad():
                 image_features = self.clip_model.get_image_features(**inputs)
