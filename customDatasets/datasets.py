@@ -38,13 +38,13 @@ class ImageDataset(Dataset):
         cat_mask = torch.from_numpy(np.where(mask == 38,1,0)).unsqueeze(0) #cat
         dog_mask = torch.from_numpy(np.where(mask == 75,1,0)).unsqueeze(0) #dog
 
-        cat_mask = cat_mask.to(self.device)
-        dog_mask = dog_mask.to(self.device)
+        cat_mask = cat_mask
+        dog_mask = dog_mask
 
         if self.uncertianty_mask_coeff != 0:
 
             uncertianty_mask = torch.from_numpy(np.where(mask == 255,1,0)).unsqueeze(0)
-            uncertianty_mask = uncertianty_mask.to(self.device)
+            uncertianty_mask = uncertianty_mask
 
             if cat_mask.any():
                 cat_mask = cat_mask + self.uncertianty_mask_coeff * uncertianty_mask
@@ -52,7 +52,7 @@ class ImageDataset(Dataset):
                 dog_mask = dog_mask + self.uncertianty_mask_coeff * uncertianty_mask
 
 
-        image = torch.from_numpy(image).to(self.device).permute(2,0,1)
+        image = torch.from_numpy(image).permute(2,0,1)
         label = torch.cat([cat_mask,dog_mask],dim=0)
 
         return image, label
@@ -141,21 +141,21 @@ class ImageDataset3Mask(Dataset):
         cat_mask = torch.from_numpy(np.where(mask == 38,1,0)).unsqueeze(0) #cat
         dog_mask = torch.from_numpy(np.where(mask == 75,1,0)).unsqueeze(0) #dog
 
-        cat_mask = cat_mask.to(self.device)
-        dog_mask = dog_mask.to(self.device)
+        cat_mask = cat_mask
+        dog_mask = dog_mask
 
         if self.uncertianty_mask_coeff != 0:
 
             uncertianty_mask = torch.from_numpy(np.where(mask == 255,1,0)).unsqueeze(0)
-            uncertianty_mask = uncertianty_mask.to(self.device)
+            uncertianty_mask = uncertianty_mask
 
             if cat_mask.any():
                 cat_mask = cat_mask + self.uncertianty_mask_coeff * uncertianty_mask
             else:
                 dog_mask = dog_mask + self.uncertianty_mask_coeff * uncertianty_mask
 
-        background_mask = torch.ones_like(cat_mask).to(self.device) - cat_mask - dog_mask
-        image = torch.from_numpy(image).to(self.device).permute(2,0,1)
+        background_mask = torch.ones_like(cat_mask) - cat_mask - dog_mask
+        image = torch.from_numpy(image).permute(2,0,1)
         label = torch.cat([cat_mask,dog_mask,background_mask],dim=0).float()
 
         return image, label
@@ -188,10 +188,10 @@ class DummyDataset:
     
     def __getitem__(self,idx):
 
-        image = torch.rand(self.image_channels,self.width,self.height).to(self.device)
+        image = torch.rand(self.image_channels,self.width,self.height)
         if self.label_channels == 1:
-            label = torch.randint(0, 3, (self.width, self.height), dtype=torch.long).to(self.device)
+            label = torch.randint(0, 3, (self.width, self.height), dtype=torch.long)
         else:
-            label = torch.softmax(torch.rand(self.label_channels,self.width,self.height).to(self.device),dim=0)
+            label = torch.softmax(torch.rand(self.label_channels,self.width,self.height),dim=0)
 
         return image, label
