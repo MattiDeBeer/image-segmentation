@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header,log_loss_to_csv
 from tqdm import tqdm 
 from models.losses import HybridLoss, IoULoss, PixelAccuracyLoss, DiceLoss
+from torch.cuda.amp import autocast, GradScaler
 
 
 
@@ -22,6 +23,7 @@ def loss_function(outputs,targets,criterion):
     return criterion(outputs,targets)
 
 def train(num_epochs, model, dataloader,rank, train_sampler,optimizer,criterion,save_location, validation_dataloader):
+    scaler = GradScaler()
     for epoch in range(0,num_epochs):
 
         running_loss = 0
@@ -32,10 +34,15 @@ def train(num_epochs, model, dataloader,rank, train_sampler,optimizer,criterion,
             images, labels = images.cuda(rank), labels.cuda(rank)
 
             optimizer.zero_grad()
-            outputs = model(images)
-            loss = loss_function(outputs,labels,criterion)
-            loss.backward()
-            optimizer.step()
+
+            with autocast():
+                outputs = model(images)
+                loss = loss_function(outputs,labels,criterion)
+
+            # add mixed precision training
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
             
             running_loss += loss.item()
 
@@ -106,7 +113,9 @@ def train_distributed(rank, world_size):
 
     model_save_file = "saved-models/Test"
 
-    batch_size = 16
+    batch_size = 256
+
+    num_workers = 2
 
     ######################
 
@@ -114,19 +123,19 @@ def train_distributed(rank, world_size):
     torch.cuda.empty_cache()
 
     #load datasets
-    #train_dataset = ImageDatasetClasses(dataset="mattidebeer/Oxford-IIIT-Pet-Augmented",split='train')
-    #val_dataset = ImageDatasetClasses(dataset="mattidebeer/Oxford-IIIT-Pet-Augmented",split='validation')
+    train_dataset = ImageDatasetClasses(dataset="mattidebeer/Oxford-IIIT-Pet-Augmented",split='train')
+    val_dataset = ImageDatasetClasses(dataset="mattidebeer/Oxford-IIIT-Pet-Augmented",split='validation')
 
     #load datasets
-    train_dataset = DummyDataset(label_channels=1, length = 500)
-    val_dataset = DummyDataset(label_channels=1, length = 500)
+    #train_dataset = DummyDataset(label_channels=1, length = 500)
+    #val_dataset = DummyDataset(label_channels=1, length = 500)
 
     #Use DistributedSampler to ensure each GPU gets different data
     train_sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=True)
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers, pin_memory=True)
 
     val_sampler = DistributedSampler(val_dataset, num_replicas=world_size, rank=rank, shuffle=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=4, pin_memory=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=num_workers, pin_memory=True)
 
     #compile model and wrap with DDP
     model = model.cuda(rank)  # Move to the correct device
