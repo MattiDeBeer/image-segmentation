@@ -27,6 +27,8 @@ dataset_loc = "mattidebeer/Oxford-IIIT-Pet-Augmented" #uncomment to load remote 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 tqdm_disable = False
+
+torch.set_float32_matmul_precision('high')
 ##############################
 
 # Clear unused memory from the cache
