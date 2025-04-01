@@ -97,12 +97,13 @@ class ClipFeatureExtractor(nn.Module):
 
         # Set training mode
         self.train_clip = train
-        self.train(train)
+        self.set_train(train)
 
     def set_train(self, value: bool):
         assert isinstance(value, bool), "Value must be a boolean"
         for param in self.clip_model.parameters():
             param.requires_grad = value
+
         self.train_clip = value
 
     def forward(self, X):
@@ -128,7 +129,7 @@ class ResNet34FeatureExtractor(nn.Module):
         self.model = nn.Sequential(*list(resnet.children())[:-2])
 
         self.set_train(train)
-        self.train = train
+        self.train_res = train
 
     def set_train(self,value : bool):
 
@@ -136,10 +137,12 @@ class ResNet34FeatureExtractor(nn.Module):
 
         for param in self.model.parameters():
                 param.requires_grad = value
+        
+        self.train_res = value
 
     def forward(self,X):
 
-        if self.train:
+        if self.train_res:
             out = self.model(X)
         else:
             with torch.no_grad():
