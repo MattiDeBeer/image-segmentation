@@ -8,17 +8,18 @@ import torch.optim as optim
 import torch.nn as nn
 from tqdm import tqdm  # For progress bar
 from models.losses import HybridLoss, IoULoss, PixelAccuracyLoss, DiceLoss
+from torch.cuda.amp import autocast, GradScaler
 
 
 ###### Hyperperameters ###########
 model = UNet(out_channels = 3)
 
 num_epochs = 250
-batch_size = 16
+batch_size = 128
 
-uncertianty_mask_coefficient = 0.7
+#uncertianty_mask_coefficient = 0.7
 
-model_save_file = "saved-models/Test"
+model_save_file = "saved-models/UNet-hybrid-loss"
 dataset_loc = '../../Datasets/Oxford-IIIT-Pet-Augmented'
 
 #dataset_loc = "mattidebeer/Oxford-IIIT-Pet-Augmented" #uncomment to load remote dataset
@@ -40,6 +41,8 @@ validation_dataset = DummyDataset(image_channels=3,label_channels=1, length = 32
 train_dataloader = DataLoader(train_dataset,batch_size = batch_size)
 validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size)
 
+
+
 model = torch.compile(model)
 model.to(device)  # Then move to GPU
 
@@ -57,6 +60,8 @@ save_training_info(model,
 
 write_csv_header(save_location)
 
+scaler = GradScaler()
+
 for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False):
 
     model.train()
@@ -70,12 +75,14 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
         optimizer.zero_grad()  # Zero gradients from the previous step
         
         # Forward pass
-        outputs = model(inputs)
-        loss = criterion(outputs, targets)  # Compute the loss
+        with autocast():
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)  # Compute the loss
         
         # Backward pass and optimization
-        loss.backward()
-        optimizer.step()
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
         
         # Track the loss
         running_loss += loss.item()
@@ -94,14 +101,15 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
         for inputs, targets in tqdm(validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False):
             inputs, targets = inputs.to(device), targets.to(device)  # Move data to device
             
-            # Forward pass
-            outputs = model(inputs)
-            
-            # Calculate different losses
-            hybrid_loss = criterion(outputs, targets)
-            iou_loss = IoULoss()(outputs, targets)
-            pixel_acc_loss = PixelAccuracyLoss()(outputs, targets)
-            dice_loss = DiceLoss()(outputs, targets)
+            with autocast():
+                # Forward pass
+                outputs = model(inputs)
+                
+                # Calculate different losses
+                hybrid_loss = criterion(outputs, targets)
+                iou_loss = IoULoss()(outputs, targets)
+                pixel_acc_loss = PixelAccuracyLoss()(outputs, targets)
+                dice_loss = DiceLoss()(outputs, targets)
             
             # Track the losses
             running_val_loss += hybrid_loss.item()
