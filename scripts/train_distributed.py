@@ -131,7 +131,6 @@ def train_distributed(rank, world_size):
     #compile model and wrap with DDP
     model = model.cuda(rank)  # Move to the correct device
     model = DDP(model, device_ids=[rank])
-    model = torch.compile(model)
 
     #Optimizer and loss
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
