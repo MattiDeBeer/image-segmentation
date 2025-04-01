@@ -44,7 +44,7 @@ class ClipUnet(nn.Module):
         super().__init__()
 
         self.clip_feature_extractor = ClipFeatureExtractor(train=False)
-        self.cross_attention_fusion = CrossAttentionFusion(256,num_heads=2)
+        self.cross_attention_fusion = CrossAttentionFusion(512,num_heads=1)
 
         self.input = nn.Conv2d(in_channels, 32, kernel_size=1, padding=0)
        
@@ -54,10 +54,10 @@ class ClipUnet(nn.Module):
         self.enc3 = ConvBlockDownsample(128, 256)         # /8
         
         # Bottleneck
-        self.bottleneck = ConvBlock(256, 256)             # /8
+        self.bottleneck = ConvBlock(256, 512)             # /8
         
     
-        self.dec1 = ConvBlockUpsampleSkip(256, 256)            # /4
+        self.dec1 = ConvBlockUpsampleSkip(512, 256)            # /4
         self.dec2 = ConvBlockUpsampleSkip(256, 128)            # /2
         self.dec3 = ConvBlockUpsampleSkip(128, 64)             # /1
         self.dec4 = ConvBlockUpsampleSkip(64, 32) 
