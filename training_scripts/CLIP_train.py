@@ -13,20 +13,22 @@ from torch.cuda.amp import autocast, GradScaler
 ###### Hyperperameters ###########
 model = UNet(out_channels = 3)
 
-num_epochs = 2
-batch_size = 100
+num_epochs = 1
+batch_size = 4
 
 uncertianty_mask_coefficient = 0
 
 model_save_file = "saved-models/CLIP_models"
 
-dataset_loc = 'Dataset/Oxford-IIIT-Pet-Augmented'
+## for Cluster
+#dataset_loc = 'Dataset/Oxford-IIIT-Pet-Augmented'
 
-#dataset_loc = "mattidebeer/Oxford-IIIT-Pet-Augmented" #uncomment to load remote dataset
+## for DICE computers
+dataset_loc = "mattidebeer/Oxford-IIIT-Pet-Augmented" #uncomment to load remote dataset
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-disable_tqdm = True
+tqdm_disable = False
 ##############################
 
 # Clear unused memory from the cache
@@ -59,7 +61,7 @@ save_training_info(model,
 
 write_csv_header(save_location)
 
-for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False):
+for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False, disable=tqdm_disable):
 
     model.train()
     running_loss = 0.0
