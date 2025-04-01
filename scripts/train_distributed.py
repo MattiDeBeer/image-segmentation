@@ -149,7 +149,7 @@ def train_distributed(rank, world_size):
         write_csv_header(save_location)
 
 
-    train(num_epochs,model,train_dataloader,rank, train_sampler,optimizer,criterion,val_dataloader)
+    train(num_epochs,model,train_dataloader,rank, train_sampler,optimizer,criterion,save_location,val_dataloader)
 
     #cleanup
     dist.destroy_process_group()
