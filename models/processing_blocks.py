@@ -11,6 +11,7 @@ from torch import cat
 import torch.nn.functional as F
 from transformers import CLIPProcessor, CLIPModel
 import torchvision.models as models
+import torch.cuda.nvtx as nvtx
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, padding=1):
@@ -62,40 +63,49 @@ class ConvBlockUpsample(nn.Module):
         
 
 class ClipFeatureExtractor(nn.Module):
-    
     def __init__(self, train=False):
         super().__init__()
 
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
-        self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32", use_fast = False)
+        # Load CLIP Model and Move to GPU
+        self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(self.device)
+        
+        # Load Preprocessor (No need to move to GPU)
+        self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
 
+        # Ensure CLIP is Frozen (No Gradients)
+        self.freeze_clip()
+
+        # Control whether CLIP should be trainable
         self.train_clip = train
-        self.train(train)
-    
-    def set_train(self, value: bool):
-        assert isinstance(value, bool), "Value must be a boolean"
+        self.set_train(train)
 
+    def freeze_clip(self):
+        """Disables gradient updates for CLIP model to exclude from optimization."""
+        for param in self.clip_model.parameters():
+            param.requires_grad = False
+
+    def set_train(self, value: bool):
+        """Allow fine-tuning of CLIP if explicitly enabled."""
+        assert isinstance(value, bool), "Value must be a boolean"
         for param in self.clip_model.parameters():
             param.requires_grad = value
 
     def forward(self, X):
+        X = X.to(self.device)  # Ensure input images are on GPU
 
-        device = self.clip_model.device  # Ensure we get the correct device
+        # Preprocess and move tensors to GPU
+        inputs = self.clip_processor(images=X, return_tensors="pt", do_rescale=False)
+        inputs = {k: v.to(self.device, non_blocking=True) for k, v in inputs.items()}
 
-        inputs = self.clip_processor(images=X.to('cpu'), return_tensors="pt", do_rescale=False)
-        
-        inputs.to('cuda' if torch.cuda.is_available() else 'cpu')
-
-        if not self.train_clip:
-            with torch.no_grad():
-                image_features = self.clip_model.get_image_features(**inputs)
-        else:
+        # Wrap CLIP model inference to exclude from CUDA graph
+        nvtx.range_push("Skip_CLIP_CUDA_Graph")  # Start of the region to be excluded
+        with torch.no_grad():  # Ensures no gradient computation
             image_features = self.clip_model.get_image_features(**inputs)
+        nvtx.range_pop()  # End of the region to be excluded
 
         return image_features
-
     
 class ResNet34FeatureExtractor(nn.Module):
 
