@@ -3,7 +3,7 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
-from customDatasets.datasets import ImageDatasetClasses
+from customDatasets.datasets import ImageDatasetClasses, DummyDataset
 from models.UNet import UNet
 from torch.utils.data import DataLoader
 from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header,log_loss_to_csv
@@ -112,8 +112,12 @@ def train(rank, world_size):
     torch.cuda.empty_cache()
 
     #load datasets
-    train_dataset = ImageDatasetClasses(dataset="mattidebeer/Oxford-IIIT-Pet-Augmented",split='train')
-    val_dataset = ImageDatasetClasses(dataset="mattidebeer/Oxford-IIIT-Pet-Augmented",split='validation')
+    #train_dataset = ImageDatasetClasses(dataset="mattidebeer/Oxford-IIIT-Pet-Augmented",split='train')
+    #val_dataset = ImageDatasetClasses(dataset="mattidebeer/Oxford-IIIT-Pet-Augmented",split='validation')
+
+    #load datasets
+    train_dataset = DummyDataset(label_channels=1, length = 500)
+    val_dataset = DummyDataset(label_channels=1, length = 500)
 
     #Use DistributedSampler to ensure each GPU gets different data
     train_sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=True)
