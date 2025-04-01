@@ -7,7 +7,10 @@ from customDatasets.datasets import ImageDatasetClasses
 from models.UNet import UNet
 from torch.utils.data import DataLoader
 from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header,log_loss_to_csv
-from tqdm import tqdm  # For progress bar
+from tqdm import tqdm 
+from models.losses import HybridLoss, IoULoss, PixelAccuracyLoss, DiceLoss
+
+
 
 #setup funciton
 def setup(rank, world_size):
@@ -19,13 +22,13 @@ def loss_function(outputs,targets,criterion):
     return criterion(outputs,targets)
 
 def train(num_epochs, model, dataloader, rank, train_sampler,optimizer,criterion,save_location, validation_dataloader):
-    for epoch in num_epochs:
+    for epoch in range(0,num_epochs):
 
         running_loss = 0
         model.train()
 
         train_sampler.set_epoch(epoch)
-        for images, labels in dataloader:
+        for images, labels in tqdm(dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False):
             images, labels = images.cuda(rank), labels.cuda(rank)
 
             optimizer.zero_grad()
@@ -36,32 +39,54 @@ def train(num_epochs, model, dataloader, rank, train_sampler,optimizer,criterion
             
             running_loss += loss.item()
         
-        val_loss = validate(model,validation_dataloader,)
+        val_loss, avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss  = validate(model,validation_dataloader,criterion,rank)
         train_loss = running_loss / len(dataloader)
 
-        print(f"Rank {rank}, Epoch {epoch}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+        tqdm.write(f"Rank {rank}, Epoch {epoch}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
 
         if rank == 1:
-            log_loss_to_csv(epoch,train_loss,val_loss,save_location)
+            log_loss_to_csv(epoch,train_loss,val_loss,avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss,save_location)
             torch.save(model.state_dict(), f'{save_location}model_{epoch+1}.pth')
+
+            tqdm.write(f"Val IoU: {avg_iou_loss:.4f}")
+            tqdm.write(f"Val Pixel Accuracy: {avg_pixel_acc_loss:.4f}")
+            tqdm.write(f"Val Dice: {avg_dice_loss:.4f}")
 
         
 
-def validate(model, dataloader, criterion, rank):
-    model.eval()
-    total_loss = 0
-    with torch.no_grad():
-        for images, labels in dataloader:
+def validate(model, validation_dataloader, criterion, rank):
+    model.eval()  # Set the model to evaluation mode
+    running_val_loss = 0.0
+    running_iou_loss = 0.0
+    running_pixel_acc_loss = 0.0
+    running_dice_loss = 0.0
+    
+    with torch.no_grad():  # No gradients needed during validation
+        for inputs, targets in tqdm(validation_dataloader, desc=f"Validation",leave=False):
+            inputs, targets = inputs.cuda(rank), targets.cude(rank)  # Move data to device
+            
+            # Forward pass
+            outputs = model(inputs)
+            
+            # Calculate different losses
+            hybrid_loss = criterion(outputs, targets)
+            iou_loss = IoULoss()(outputs, targets)
+            pixel_acc_loss = PixelAccuracyLoss()(outputs, targets)
+            dice_loss = DiceLoss()(outputs, targets)
+            
+            # Track the losses
+            running_val_loss += hybrid_loss.item()
+            running_iou_loss += iou_loss.item()
+            running_pixel_acc_loss += pixel_acc_loss.item()
+            running_dice_loss += dice_loss.item()
+    
+    # Calculate average validation losses
+    avg_val_loss = running_val_loss / len(validation_dataloader)
+    avg_iou_loss = running_iou_loss / len(validation_dataloader)
+    avg_pixel_acc_loss = running_pixel_acc_loss / len(validation_dataloader)
+    avg_dice_loss = running_dice_loss / len(validation_dataloader)
 
-            images, labels = images.cuda(rank), labels.cuda(rank)
-            outputs = model(images)
-            loss = loss_function(outputs, labels, criterion)
-
-            total_loss += loss.item()
-
-    avg_loss = total_loss / len(dataloader)
-
-    return avg_loss
+    return avg_val_loss, avg_pixel_acc_loss,avg_dice_loss,avg_iou_loss
 
 #training loop
 def train(rank, world_size):
@@ -77,7 +102,7 @@ def train(rank, world_size):
 
     uncertianty_mask_coefficient = 0
 
-    model_save_file = "saved-models/UNet"
+    model_save_file = "saved-models/Test"
 
     batch_size = 16
 
@@ -101,6 +126,10 @@ def train(rank, world_size):
     model = torch.compile(model)
     model = DDP(model, device_ids=[rank])
 
+    #Optimizer and loss
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    criterion = HybridLoss()
+
     if rank == 1:
         save_location = get_next_run_folder(model_save_file)
         save_training_info(model,
@@ -112,9 +141,6 @@ def train(rank, world_size):
                    extra_params = {'uncertianty_mask_coefficient' : uncertianty_mask_coefficient})
         write_csv_header(save_location)
 
-    #Optimizer and loss
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    criterion = torch.nn.CrossEntropyLoss()
 
     train(num_epochs,model,train_dataloader,rank, train_sampler,optimizer,criterion,val_dataloader)
 
