@@ -5,6 +5,7 @@ from models.helperFunctions import get_next_run_folder, save_training_info, writ
 import torch
 import torch.optim as optim
 from tqdm import tqdm
+from models.losses import *
 
 
 ###### Hyperperameters ###########
