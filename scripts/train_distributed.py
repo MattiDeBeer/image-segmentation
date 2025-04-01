@@ -137,8 +137,9 @@ def train_distributed(rank, world_size):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     criterion = HybridLoss()
 
-    if rank == 1:
-        save_location = get_next_run_folder(model_save_file)
+    save_location = get_next_run_folder(model_save_file)
+
+    if rank == 0:
         save_training_info(model,
                    optimizer,
                    criterion,
