@@ -65,7 +65,7 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
     
     # Training loop
     for inputs, targets in tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False, disable=tqdm_disable):
-        images, targets = images.to(device, non_blocking=True), targets.to(device, non_blocking=True)
+        inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
         
         optimizer.zero_grad()  # Zero gradients from the previous step
         
@@ -92,7 +92,7 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
     
     with torch.no_grad():  # No gradients needed during validation
         for inputs, targets in tqdm(validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False, disable=tqdm_disable):
-            images, targets = images.to(device, non_blocking=True), targets.to(device, non_blocking=True)
+            inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
 
             # Forward pass
             outputs = model(inputs)
