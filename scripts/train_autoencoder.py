@@ -6,7 +6,7 @@ Created on Sun Mar 30 17:50:01 2025
 @author: jamie
 """
 
-from customDatasets.datasets import ImageDataset, DummyDataset
+from customDatasets.datasets import CustomImageDataset, DummyDataset
 # Import the autoencoder model instead of UNet
 from models.autoencoder import Autoencoder  
 from torch.utils.data import DataLoader
@@ -28,7 +28,7 @@ batch_size = 16
 # For autoencoder training, we can use a different save folder if desired
 model_save_file = "/tmp/saved-models/Autoencoders"
 #dataset_loc = 'Datasets/Oxford-IIIT-Pet-Augmented'
-dataset_loc = "mattidebeer/Oxford-IIIT-Pet-Augmented" #uncomment to load remote dataset
+#dataset_loc = "mattidebeer/Oxford-IIIT-Pet-Augmented" #uncomment to load remote dataset
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 ##############################
@@ -40,8 +40,8 @@ save_location = get_next_run_folder(model_save_file)
 #train_dataset = DummyDataset()
 #validation_dataset = DummyDataset()
 
-train_dataset = ImageDataset(dataset=dataset_loc, split='train', uncertianty_mask_coeff=0)
-validation_dataset = ImageDataset(dataset=dataset_loc, split='validation', uncertianty_mask_coeff=0)
+train_dataset = CustomImageDataset(split='train', augmentations_per_datapoint=4)
+validation_dataset = CustomImageDataset(split='validation', augmentations_per_datapoint=0)
 
 train_dataloader = DataLoader(train_dataset, batch_size=batch_size)
 validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size)
