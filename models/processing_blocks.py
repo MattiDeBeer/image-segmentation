@@ -93,7 +93,7 @@ class ClipFeatureExtractor(nn.Module):
         self.custom_preprocessor = CustomClipPreprocessor(mean=mean, std=std)
 
         # Load the CLIP model onto the GPU
-        self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(self.device)
+        self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32", from_tf=True).to(self.device)
 
         # Set training mode
         self.train_clip = train
