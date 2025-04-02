@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 from models.processing_blocks import *
-from customDatasets.datasets import ImageDataset3Mask, DummyDataset
 from models.helperFunctions import *
 
 class ClipResSegmentationModel(nn.Module):
