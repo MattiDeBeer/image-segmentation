@@ -1,5 +1,5 @@
 
-from customDatasets.datasets import ImageDataset, DummyDataset, ImageDataset3Mask, ImageDatasetClasses
+from customDatasets.datasets import CustomImageDataset
 from models.UNet import UNet
 from torch.utils.data import DataLoader
 from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header,log_loss_to_csv
@@ -8,40 +8,36 @@ import torch.optim as optim
 import torch.nn as nn
 from tqdm import tqdm  # For progress bar
 from models.losses import HybridLoss, IoULoss, PixelAccuracyLoss, DiceLoss
-from torch.cuda.amp import autocast, GradScaler
+from torch import autocast, GradScaler
+import sys
 
 
 ###### Hyperperameters ###########
 model = UNet(out_channels = 3)
 
-num_epochs = 250
+num_epochs = 2
 batch_size = 128
 
 uncertianty_mask_coefficient = 0
 
-model_save_file = "saved-models/UNet-hybrid-loss"
-dataset_loc = '../../Datasets/Oxford-IIIT-Pet-Augmented'
+model_save_file = "saved-models/Test"
 
-#dataset_loc = "mattidebeer/Oxford-IIIT-Pet-Augmented" #uncomment to load remote dataset
+tqdm_disable = False
+
+##############################
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-##############################
 
 # Clear unused memory from the cache
 torch.cuda.empty_cache()
 
 save_location = get_next_run_folder(model_save_file)
 
-train_dataset = DummyDataset(image_channels=3,label_channels=1, length = 32)
-validation_dataset = DummyDataset(image_channels=3,label_channels=1, length = 32)
-
-#train_dataset = ImageDatasetClasses(split='train')
-#validation_dataset = ImageDatasetClasses(split = 'validation')
+train_dataset = CustomImageDataset(image_channels=3,augmentations_per_datapoint=4)
+validation_dataset = CustomImageDataset(image_channels=3,augmentations_per_datapoint=0)
 
 train_dataloader = DataLoader(train_dataset,batch_size = batch_size)
 validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size)
-
-
 
 model = torch.compile(model, mode="max-autotune")
 model.to(device)  # Then move to GPU
@@ -49,18 +45,20 @@ model.to(device)  # Then move to GPU
 optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
 criterion = HybridLoss()
 
+num_params = sum(p.numel() for p in model.parameters())
+
 save_training_info(model,
                    optimizer,
                    criterion,
                    train_dataloader,
                    validation_dataloader,
                    save_location, 
-                   extra_params = {'uncertianty_mask_coefficient' : uncertianty_mask_coefficient})
+                   extra_params = {'num_params' : num_params})
 
 
 write_csv_header(save_location)
 
-for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False):
+for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False, disable=tqdm_disable):
 
     model.train()
     running_loss = 0.0
@@ -68,7 +66,7 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
     total_train = 0
     
     # Training loop
-    for inputs, targets in tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False):
+    for inputs, targets in tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False, disable=tqdm_disable):
         inputs, targets = inputs.to(device), targets.to(device)  # Move data to device
         optimizer.zero_grad()  # Zero gradients from the previous step
         
@@ -94,7 +92,7 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
     running_dice_loss = 0.0
     
     with torch.no_grad():  # No gradients needed during validation
-        for inputs, targets in tqdm(validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False):
+        for inputs, targets in tqdm(validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False, disable=tqdm_disable):
             inputs, targets = inputs.to(device), targets.to(device)  # Move data to device
             
             # Forward pass
@@ -118,13 +116,24 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
     avg_pixel_acc_loss = running_pixel_acc_loss / len(validation_dataloader)
     avg_dice_loss = running_dice_loss / len(validation_dataloader)
     
-    tqdm.write(f"Epoch: {epoch}")
-    tqdm.write(f"Train Loss: {avg_train_loss:.4f}")
-    tqdm.write(f"Validation Loss: {avg_val_loss:.4f}")
-    tqdm.write(f"Val IoU: {avg_iou_loss:.4f}")
-    tqdm.write(f"Val Pixel Accuracy: {avg_pixel_acc_loss:.4f}")
-    tqdm.write(f"Val Dice: {avg_dice_loss:.4f}")
-    tqdm.write('\n')
+    if not tqdm_disable:
+        tqdm.write(f"Epoch: {epoch}")
+        tqdm.write(f"Train Loss: {avg_train_loss:.4f}")
+        tqdm.write(f"Validation Loss: {avg_val_loss:.4f}")
+        tqdm.write(f"Val IoU: {avg_iou_loss:.4f}")
+        tqdm.write(f"Val Pixel Accuracy: {avg_pixel_acc_loss:.4f}")
+        tqdm.write(f"Val Dice: {avg_dice_loss:.4f}")
+        tqdm.write('\n')
+
+    if tqdm_disable:
+        sys.stdout(f"Epoch: {epoch}")
+        sys.stdout(f"Train Loss: {avg_train_loss:.4f}")
+        sys.stdout(f"Validation Loss: {avg_val_loss:.4f}")
+        sys.stdout(f"Val IoU: {avg_iou_loss:.4f}")
+        sys.stdout(f"Val Pixel Accuracy: {avg_pixel_acc_loss:.4f}")
+        sys.stdout(f"Val Dice: {avg_dice_loss:.4f}")
+        sys.stdout('\n')
+
 
     log_loss_to_csv(epoch,avg_train_loss,avg_val_loss, avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss, save_location)
     
