@@ -13,8 +13,10 @@ import sys
 import torch.multiprocessing as mp
 import os
 
-os.environ["OMP_NUM_THREADS"] = "8"
-os.environ["MKL_NUM_THREADS"] = "8"
+core_num = 12
+
+os.environ["OMP_NUM_THREADS"] = str(core_num)
+os.environ["MKL_NUM_THREADS"] = str(core_num)
 
 if __name__ == '__main__':
 
@@ -24,8 +26,8 @@ if __name__ == '__main__':
     model = UNet(out_channels = 3)
 
     num_epochs = 2
-    batch_size = 128
-    num_workers = 4
+    batch_size = 100
+    num_workers = core_num - 2
 
     model_save_file = "saved-models/Test"
 
@@ -65,6 +67,8 @@ if __name__ == '__main__':
 
     write_csv_header(save_location)
 
+    gradscaler = torch.GradScaler('cuda')
+
     for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False, disable=tqdm_disable):
 
         model.train()
@@ -79,12 +83,14 @@ if __name__ == '__main__':
             optimizer.zero_grad()  # Zero gradients from the previous step
             
             # Forward pass
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)  # Compute the loss
+            with torch.autocast('cuda'):
+                outputs = model(inputs)
+                loss = criterion(outputs, targets)  # Compute the loss
             
             # Backward pass and optimization
-            loss.backward()
-            optimizer.step()
+            gradscaler.scale(loss).backward()
+            gradscaler.step(optimizer)
+            gradscaler.update()
             
             # Track the loss
             running_loss += loss.item()
@@ -103,14 +109,15 @@ if __name__ == '__main__':
             for inputs, targets in tqdm(validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False, disable=tqdm_disable):
                 inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
 
-                # Forward pass
-                outputs = model(inputs)
-                
-                # Calculate different losses
-                hybrid_loss = criterion(outputs, targets)
-                iou_loss = IoULoss()(outputs, targets)
-                pixel_acc_loss = PixelAccuracyLoss()(outputs, targets)
-                dice_loss = DiceLoss()(outputs, targets)
+                with torch.autocast('cuda'):
+                    # Forward pass
+                    outputs = model(inputs)
+                    
+                    # Calculate different losses
+                    hybrid_loss = criterion(outputs, targets)
+                    iou_loss = IoULoss()(outputs, targets)
+                    pixel_acc_loss = PixelAccuracyLoss()(outputs, targets)
+                    dice_loss = DiceLoss()(outputs, targets)
                 
                 # Track the losses
                 running_val_loss += hybrid_loss.item()
