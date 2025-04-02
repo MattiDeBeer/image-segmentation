@@ -10,6 +10,7 @@ from models.losses import HybridLoss, IoULoss, PixelAccuracyLoss, DiceLoss
 import sys
 import torch.multiprocessing as mp
 import os
+import time
 
 core_num = 12
 
@@ -68,11 +69,13 @@ if __name__ == '__main__':
     gradscaler = torch.GradScaler('cuda')
 
     for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False, disable=tqdm_disable):
-
+        
         model.train()
         running_loss = 0.0
         correct_train = 0
         total_train = 0
+
+        start_time = time.time()
         
         # Training loop
         for inputs, targets in tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False, disable=tqdm_disable):
@@ -92,7 +95,14 @@ if __name__ == '__main__':
             
             # Track the loss
             running_loss += loss.item()
+
+        end_time = time.time()
         
+        # Calculate time per datapoint
+        time_per_epoch = end_time - start_time
+        total_datapoints = len(train_dataloader) * batch_size
+        rate = total_datapoints / time_per_epoch
+
         # Calculate average training loss and accuracy
         avg_train_loss = running_loss / len(train_dataloader)
         
@@ -131,6 +141,7 @@ if __name__ == '__main__':
         
         if not tqdm_disable:
             tqdm.write(f"Epoch: {epoch}")
+            tqdm.write(f"Rate: {rate:.1f} datapoints/s")
             tqdm.write(f"Train Loss: {avg_train_loss:.4f}")
             tqdm.write(f"Validation Loss: {avg_val_loss:.4f}")
             tqdm.write(f"Val IoU: {avg_iou_loss:.4f}")
@@ -140,6 +151,7 @@ if __name__ == '__main__':
 
         if tqdm_disable:
             sys.stdout(f"Epoch: {epoch}")
+            sys.stdout.write(f"Rate: {rate:.1f} datapoints/s")
             sys.stdout(f"Train Loss: {avg_train_loss:.4f}")
             sys.stdout(f"Validation Loss: {avg_val_loss:.4f}")
             sys.stdout(f"Val IoU: {avg_iou_loss:.4f}")
@@ -151,9 +163,6 @@ if __name__ == '__main__':
         log_loss_to_csv(epoch,avg_train_loss,avg_val_loss, avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss, save_location)
         
         torch.save(model.state_dict(), f'{save_location}model_{epoch+1}.pth')
-
-
-
 
 
 
