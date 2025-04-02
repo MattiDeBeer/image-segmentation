@@ -17,6 +17,7 @@ model = UNet(out_channels = 3)
 
 num_epochs = 2
 batch_size = 128
+num_workers = 10
 
 model_save_file = "saved-models/Test"
 
@@ -34,8 +35,8 @@ save_location = get_next_run_folder(model_save_file)
 train_dataset = CustomImageDataset(split='train',augmentations_per_datapoint=4)
 validation_dataset = CustomImageDataset(split='validation',augmentations_per_datapoint=0)
 
-train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=True, num_workers=4, pin_memory=True)
-validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
+train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
+validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
 
 model = torch.compile(model, mode="max-autotune")
 model.to(device)  # Then move to GPU
