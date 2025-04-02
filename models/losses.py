@@ -75,8 +75,20 @@ class PixelAccuracyLoss(nn.Module):
         preds: (B, C, H, W) - predicted probability maps (softmax applied)
         targets: (B, H, W) - ground truth labels (long tensor)
         """
-        preds = nn.functional.softmax(preds,dim=1)
+        preds = nn.functional.softmax(preds, dim=1)
         preds = torch.argmax(preds, dim=1)  # Convert softmax output to class indices
-        correct = (preds == targets).float().mean()  # Compute accuracy
-
-        return correct  # convert to  1 - accuracy to make it a loss function
+        
+        num_classes = 3  # Specifically for 3 classes (0,1,2)
+        accuracies = []
+        
+        for c in range(num_classes):
+            # Create masks for current class
+            class_mask = (targets == c)
+            # Calculate accuracy for current class
+            if class_mask.sum() > 0:  # Only if class exists in targets
+                class_correct = ((preds == targets) & class_mask).float().sum()
+                class_total = class_mask.float().sum()
+                class_acc = class_correct / class_total
+                accuracies.append(class_acc)
+        
+        return torch.stack(accuracies).mean()  # Average accuracy across all classes
