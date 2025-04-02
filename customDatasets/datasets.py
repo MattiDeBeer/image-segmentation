@@ -67,7 +67,7 @@ class CustomImageDataset(Dataset):
         image = self._deserialize_numpy(datapoint['image'])
         mask = self._deserialize_numpy(datapoint['mask'],shape=(256,256))
 
-        image = torch.from_numpy(image).permute(2,0,1).float()
+        image = torch.from_numpy(image).permute(2,0,1).float() / 255.0
         mask = torch.from_numpy(np.where(mask == 255, 0, np.where(mask == 38, 1, np.where(mask == 75, 2, 0)))).long()
 
         return image, mask
