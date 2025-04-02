@@ -11,7 +11,10 @@ from models.losses import HybridLoss, IoULoss, PixelAccuracyLoss, DiceLoss
 from torch import autocast, GradScaler
 import sys
 import torch.multiprocessing as mp
+import os
 
+os.environ["OMP_NUM_THREADS"] = "8"
+os.environ["MKL_NUM_THREADS"] = "8"
 
 if __name__ == '__main__':
 
@@ -22,7 +25,7 @@ if __name__ == '__main__':
 
     num_epochs = 2
     batch_size = 128
-    num_workers = 8
+    num_workers = 4
 
     model_save_file = "saved-models/Test"
 
