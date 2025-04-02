@@ -33,8 +33,8 @@ torch.cuda.empty_cache()
 
 save_location = get_next_run_folder(model_save_file)
 
-train_dataset = CustomImageDataset(image_channels=3,augmentations_per_datapoint=4)
-validation_dataset = CustomImageDataset(image_channels=3,augmentations_per_datapoint=0)
+train_dataset = CustomImageDataset(split='train',augmentations_per_datapoint=4)
+validation_dataset = CustomImageDataset(split='validation',augmentations_per_datapoint=0)
 
 train_dataloader = DataLoader(train_dataset,batch_size = batch_size)
 validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size)
