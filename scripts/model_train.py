@@ -18,8 +18,6 @@ model = UNet(out_channels = 3)
 num_epochs = 2
 batch_size = 128
 
-uncertianty_mask_coefficient = 0
-
 model_save_file = "saved-models/Test"
 
 tqdm_disable = False
@@ -36,8 +34,8 @@ save_location = get_next_run_folder(model_save_file)
 train_dataset = CustomImageDataset(split='train',augmentations_per_datapoint=4)
 validation_dataset = CustomImageDataset(split='validation',augmentations_per_datapoint=0)
 
-train_dataloader = DataLoader(train_dataset,batch_size = batch_size)
-validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size)
+train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=True, num_workers=4, pin_memory=True)
+validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
 
 model = torch.compile(model, mode="max-autotune")
 model.to(device)  # Then move to GPU
@@ -67,7 +65,8 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
     
     # Training loop
     for inputs, targets in tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False, disable=tqdm_disable):
-        inputs, targets = inputs.to(device), targets.to(device)  # Move data to device
+        images, targets = images.to(device, non_blocking=True), targets.to(device, non_blocking=True)
+        
         optimizer.zero_grad()  # Zero gradients from the previous step
         
         # Forward pass
@@ -93,8 +92,8 @@ for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = F
     
     with torch.no_grad():  # No gradients needed during validation
         for inputs, targets in tqdm(validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False, disable=tqdm_disable):
-            inputs, targets = inputs.to(device), targets.to(device)  # Move data to device
-            
+            images, targets = images.to(device, non_blocking=True), targets.to(device, non_blocking=True)
+
             # Forward pass
             outputs = model(inputs)
             
