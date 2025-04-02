@@ -24,7 +24,7 @@ if __name__ == '__main__':
     ###### Hyperperameters ###########
     model = ClipAutoencoder(out_channels = 3)
 
-    num_epochs = 2
+    num_epochs = 5
     batch_size = 100
     num_workers = core_num - 2
 
@@ -162,4 +162,8 @@ if __name__ == '__main__':
 
         log_loss_to_csv(epoch,avg_train_loss,avg_val_loss, avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss, save_location)
         
+        if epoch > 0:
+            os.remove(f'{save_location}model_{epoch}.pth')
+
         torch.save(model.state_dict(), f'{save_location}model_{epoch+1}.pth')
+
