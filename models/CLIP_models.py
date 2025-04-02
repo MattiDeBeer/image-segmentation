@@ -3,6 +3,7 @@ import torch.nn as nn
 import torchvision.models as models
 from models.processing_blocks import *
 from models.helperFunctions import *
+from customDatasets.datasets import DummyDataset
 
 class ClipResSegmentationModel(nn.Module):
 
@@ -86,7 +87,41 @@ class ClipUnet(nn.Module):
 
         return out
     
+class ClipAutoencoder(nn.Module):
 
+    def __init__(self,out_channels = 3, in_channels = 3, activation = nn.Identity() ):
+        super().__init__()
+
+        self.clip_feature_extractor = ClipFeatureExtractor(train=False)
+
+        self.input = nn.Conv2d(in_channels, 32, kernel_size=1, padding=0)
+
+        self.coupler = nn.Linear(512,16384)
+       
+        self.dec1 = ConvBlockUpsample(64, 64)
+        self.dec2 = ConvBlockUpsample(64, 64)
+        self.dec3 = ConvBlockUpsample(64, 32)
+        self.dec4 = ConvBlockUpsampleSkip(32, 32) 
+
+        self.out = nn.Conv2d(32, out_channels, kernel_size=1, padding=0)
+
+        self.activation = activation
+    
+    def forward(self,X):
+
+        clip_features = self.clip_feature_extractor(X)
+
+        input = self.input(X)
+
+        bottleneck = self.coupler(clip_features).reshape(-1,64,16,16)
+
+        dec1 = self.dec1(bottleneck)
+        dec2 = self.dec2(dec1)
+        dec3 = self.dec3(dec2)
+        dec4 = self.dec4(dec3,input)
+        out = self.out(dec4)
+
+        return out
     
 
 if __name__ == '__main__':
@@ -97,6 +132,6 @@ if __name__ == '__main__':
 
     print(image.size())
 
-    model = ClipResSegmentationModel()
+    model = ClipAutoencoder()
 
     print(model(image).size())
