@@ -161,11 +161,11 @@ def show_datapoint_classes(datapoint):
     plt.title('Original Image')
 
     plt.subplot(142)
-    plt.imshow((label[0].cpu() == 1).float(), cmap='gray')
+    plt.imshow((label.cpu() == 1).float(), cmap='gray')
     plt.title('Cat Mask')
 
     plt.subplot(143)
-    plt.imshow((label[0].cpu() == 2).float(), cmap='gray')
+    plt.imshow((label.cpu() == 2).float(), cmap='gray')
     plt.title('Dog Mask')
 
     plt.show()

@@ -98,6 +98,6 @@ if __name__ == '__main__':
 
     print(image.size())
 
-    model = ClipUnet()
+    model = ClipResSegmentationModel()
 
     print(model(image).size())
