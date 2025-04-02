@@ -83,6 +83,7 @@ profile_default/
 ipython_config.py
 
 #Data
+Data/
 Dataset/
 augmented-dataset/
 augmented-dataset.tar.gz
