@@ -28,7 +28,7 @@ if __name__ == '__main__':
     batch_size = 100
     num_workers = core_num - 2
 
-    model_save_file = "saved-models/Test"
+    model_save_file = "saved-models/CLIP-Unet"
 
     tqdm_disable = False
 
