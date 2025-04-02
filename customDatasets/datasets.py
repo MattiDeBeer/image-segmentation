@@ -88,6 +88,27 @@ class CustomImageDataset(Dataset):
         return image, mask
 
 
+class DummyDataset:
+ 
+     def __init__(self,image_channels=3,width=256,height=256,label_channels=2,length = 100):
+         self.image_channels = image_channels
+         self.width = width
+         self.height = height
+         self.label_channels = label_channels
+         self.device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
+         self.length = length
+ 
+     def __len__(self):
+         return self.length
+ 
+     def __getitem__(self,idx):
+ 
+         image = torch.rand(self.image_channels,self.width,self.height)
+         if self.label_channels == 1:
+             label = torch.randint(0, 3, (self.width, self.height), dtype=torch.long)
+         else:
+             label = torch.softmax(torch.rand(self.label_channels,self.width,self.height),dim=0)
+
         
     
         
