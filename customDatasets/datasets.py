@@ -4,7 +4,7 @@ from PIL import Image
 import os
 import sys
 import numpy as np
-from torchvision import transforms
+import torchvision.transforms.v2 as transforms
 from datasets import load_dataset
 import copy
 from scripts.dataset_downloader import download_huggingface_dataset
