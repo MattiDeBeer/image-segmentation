@@ -17,7 +17,7 @@ class CustomImageDataset(Dataset):
         if split not in ['train', 'validation', 'test']:
             raise ValueError(f"split must be one of: 'train', 'validation', 'test'. You selected {split}")
         
-        assert isinstance(augmentations_per_datapoint,int) and augmentations_per_datapoint > 0, f"You must choose a positive integer for augmentations per datapoint, you choose: {augmentations_per_datapoint}"
+        assert isinstance(augmentations_per_datapoint,int) and augmentations_per_datapoint >= 0, f"You must choose a positive integer for augmentations per datapoint, you choose: {augmentations_per_datapoint}"
 
         try:
             self.dataset = load_dataset(dataset_loc, split=split)
