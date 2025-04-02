@@ -11,17 +11,17 @@ def download_huggingface_dataset(dataset_name, save_path, split="train"):
         split (str): The dataset split to download (e.g., 'train', 'validation', 'test').
     """
 
-    print(f"fetching Dataset {dataset_name} ({split} split)")
+    print(f"fetching Dataset {dataset_name}")
 
     os.makedirs(save_path, exist_ok=True)
 
     dataset = load_dataset(dataset_name, split=split, cache_dir=save_path)
 
-    print(f"Dataset {dataset_name} ({split} split) downloaded to {save_path}")
+    print(f"Dataset {dataset_name} downloaded to {save_path}")
 
 if __name__ == '__main__':
     dataset_name = "mattidebeer/Oxford-IIIT-Pet-Augmented"
-    save_path = "./Dataset/Oxford-IIIT-Pet-Augmented"
+    save_path = "Data/Oxford-IIIT-Pet-Augmented"
 
     download_huggingface_dataset(dataset_name, save_path, split="train")
     download_huggingface_dataset(dataset_name, save_path, split="validation")
