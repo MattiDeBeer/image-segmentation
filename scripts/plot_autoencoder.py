@@ -10,14 +10,14 @@ import torch
 import matplotlib.pyplot as plt
 from torchvision import transforms
 from models.autoencoder import Autoencoder  
-from customDatasets.datasets import ImageDataset  
+from customDatasets.datasets import CustomImageDataset  
 
 # Set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # 1. Load the model and weights
 model = Autoencoder(in_channels=3, out_channels=3)  # or your segmentation model
-state_dict = torch.load("saved-models/Autoencoders/model_152.pth", map_location=device)
+state_dict = torch.load("saved-models/Autoencoders/model_3.pth", map_location=device)
 new_state_dict = {}
 for key, value in state_dict.items():
     new_key = key.replace("_orig_mod.", "")
@@ -29,15 +29,16 @@ model.eval()
 
 # 2. Get a test sample (modify according to your dataset structure)
 # Example using a single sample from your test dataset:
-test_dataset = ImageDataset(dataset="Datasets/Oxford-IIIT-Pet-Augmented/", split="test")
-test_img, test_mask = test_dataset[1]  # test_mask could be (H, W) or one-hot encoded
+test_dataset = CustomImageDataset(split="test",augmentations_per_datapoint=0)
+test_img, test_mask = test_dataset[1]
 
-# Add a batch dimension and move to device
+# Convert to float
+test_img = test_img.float() / 255.0
+
 test_img_batch = test_img.unsqueeze(0).to(device)
-
-# 3. Generate a prediction
 with torch.no_grad():
-    pred = model(test_img_batch)  # Assume output shape is (1, num_classes, H, W)
+    pred = model(test_img_batch)
+
 
 # If it's multi-class segmentation:
 pred_mask = torch.argmax(pred, dim=1).cpu().squeeze().numpy()
