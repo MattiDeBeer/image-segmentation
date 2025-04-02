@@ -24,13 +24,13 @@ if __name__ == '__main__':
     ###### Hyperperameters ###########
     model = ClipResSegmentationModel(out_channels = 3)
 
-    num_epochs = 2
-    batch_size = 100
+    num_epochs = 200
+    batch_size = 150
     num_workers = core_num - 2
 
-    model_save_file = "saved-models/CLIP-RES"
+    model_save_file = "saved-models/CLIP-autoencoder"
 
-    tqdm_disable = False
+    tqdm_disable = True
 
     ##############################
 
