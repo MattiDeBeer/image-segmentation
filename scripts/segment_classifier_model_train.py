@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
     save_location = get_next_run_folder(model_save_file)
 
-    train_dataset = ClassImageDataset(split='train',augmentations_per_datapoint=4)
+    train_dataset = ClassImageDataset(split='validation',augmentations_per_datapoint=4)
     validation_dataset = ClassImageDataset(split='validation',augmentations_per_datapoint=0)
 
     train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
@@ -78,14 +78,16 @@ if __name__ == '__main__':
         
         # Training loop
         for inputs, targets in tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False):
-            inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
+            inputs, = inputs.to(device, non_blocking=True)
+
+            mask_targets, class_targets = targets[0].to(device, non_blocking=True).unsqueeze(1), targets[1].to(device, non_blocking=True)
             
             optimizer.zero_grad()  # Zero gradients from the previous step
             
             # Forward pass
             with torch.autocast('cuda'):
                 pred_masks, pred_labels = model(inputs)
-                loss = criterion(pred_masks, targets[0].unsqueeze(1))  + criterion(pred_class, targets[0])
+                loss = criterion(pred_masks, mask_targets)  + criterion(pred_class, class_targets)
             
             # Backward pass and optimization
             gradscaler.scale(loss).backward()
@@ -115,15 +117,17 @@ if __name__ == '__main__':
         with torch.no_grad():  # No gradients needed during validation
             for inputs, targets in tqdm(validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False):
                 inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
+                mask_targets, class_targets = targets[0].to(device, non_blocking=True).unsqueeze(1), targets[1].to(device, non_blocking=True)
 
                 with torch.autocast('cuda'):
                     # Forward pass
                     pred_masks, pred_labels = model(inputs)
                     
                     # Calculate different losses
-                    hybrid_loss = criterion(pred_masks, targets[0].unsqueeze(1)) + criterion(pred_class, targets[1])
+                    hybrid_loss = criterion(pred_masks, mask_targets)  + criterion(pred_class, class_targets)
 
                     outputs = convert_prediciton(pred_masks,pred_labels)
+                    targets = convert_targets(mask_targets.squeeze(0),class_targets)
 
                     iou_loss = IoULoss()(outputs, targets)
                     pixel_acc_loss = PixelAccuracyLoss()(outputs, targets)
