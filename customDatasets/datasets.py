@@ -385,9 +385,9 @@ class CustomCollateFn:
         masks = torch.stack(masks)
         class_labels = torch.stack(class_labels)
 
-        masks = masks.to(self.device, non_blocking=True).pin_memory()
-        images = images.to(self.device, non_blocking=True).pin_memory()
-        class_labels = class_labels.to(self.device, non_blocking=True).pin_memory()
+        masks = masks.pin_memory().to(self.device, non_blocking=True)
+        images = images.pin_memory().to(self.device, non_blocking=True)
+        class_labels = class_labels.pin_memory().to(self.device, non_blocking=True)
 
         saved_images = images[::self.augmentations_per_datapoint+1]
         saved_masks = masks[::self.augmentations_per_datapoint+1]
