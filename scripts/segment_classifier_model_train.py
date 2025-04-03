@@ -87,7 +87,7 @@ if __name__ == '__main__':
             # Forward pass
             with torch.autocast('cuda'):
                 pred_masks, pred_labels = model(inputs)
-                loss = criterion(pred_masks, mask_targets)  + criterion(pred_class, class_targets)
+                loss = criterion(pred_masks, mask_targets)  + criterion(pred_labels, class_targets)
             
             # Backward pass and optimization
             gradscaler.scale(loss).backward()
@@ -124,7 +124,7 @@ if __name__ == '__main__':
                     pred_masks, pred_labels = model(inputs)
                     
                     # Calculate different losses
-                    hybrid_loss = criterion(pred_masks, mask_targets)  + criterion(pred_class, class_targets)
+                    hybrid_loss = criterion(pred_masks, mask_targets)  + criterion(pred_labels, class_targets)
 
                     outputs = convert_prediciton(pred_masks,pred_labels)
                     targets = convert_targets(mask_targets.squeeze(0),class_targets)
