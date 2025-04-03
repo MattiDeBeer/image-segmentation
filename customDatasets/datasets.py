@@ -228,6 +228,8 @@ class ClassImageDataset(Dataset):
 
         self.augmentations_per_datapoint = augmentations_per_datapoint + 1
 
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         self.image_transform  = torch.nn.Sequential(
             transforms.RandomHorizontalFlip(),
             transforms.RandomRotation(90),
@@ -235,12 +237,12 @@ class ClassImageDataset(Dataset):
             ### Image only transforms ###
             transforms.ColorJitter(brightness=0.4, contrast=0.3, saturation=0.2, hue=0.2),
             transforms.GaussianBlur(21)
-        )
+        ).to(self.device)
         
         self.mask_transform = torch.nn.Sequential(
             transforms.RandomHorizontalFlip(),
             transforms.RandomRotation(90),
-        )
+        ).to(self.device)
 
     def __len__(self):
         return(len(self.dataset) * self.augmentations_per_datapoint)
@@ -252,11 +254,11 @@ class ClassImageDataset(Dataset):
 
         random.seed(seed)
         torch.manual_seed(seed)
-        image = self.image_transform(image)
+        image = self.image_transform(image.to(self.device)).to('cpu')
 
         random.seed(seed)
         torch.manual_seed(seed)
-        mask = self.mask_transform(mask.unsqueeze(0)).squeeze(0)
+        mask = self.mask_transform(mask.unsqueeze(0).to(self.device)).squeeze(0).to('cpu')
 
         return image, mask
     
@@ -294,3 +296,4 @@ class ClassImageDataset(Dataset):
 
         return image, (mask, label)
         
+
