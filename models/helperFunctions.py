@@ -343,7 +343,7 @@ def convert_targets(targets):
     out_masks = cat_masks + 2 * dog_masks
     out_masks = out_masks.long()
 
-    return out_masks
+    return out_masks.squeeze(1)
 
 
 
