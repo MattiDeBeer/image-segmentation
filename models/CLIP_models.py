@@ -113,7 +113,7 @@ class ClipAutoencoder(nn.Module):
 
         input = self.input(X)
 
-        bottleneck = self.coupler(clip_features).reshape(-1,64,16,16)
+        bottleneck = self.coupler(clip_features).view(-1,64,16,16)
 
         dec1 = self.dec1(bottleneck)
         dec2 = self.dec2(dec1)
@@ -123,6 +123,40 @@ class ClipAutoencoder(nn.Module):
 
         return out
     
+class ClipResSegmentationClassification(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+
+        self.clip_feature_extractor = ClipFeatureExtractor(train=False)
+        self.encoder = ResNet34FeatureExtractor(train=False)
+
+        self.classifier_head = nn.Sequential(
+            nn.Linear(512,1)
+        )
+
+        self.dec1 = ConvBlockUpsample(512,256)
+        self.dec2 = ConvBlockUpsample(256,128)
+        self.dec3 = ConvBlockUpsample(128,64)
+        self.dec4 = ConvBlockUpsample(64,32)
+        self.dec5 = ConvBlockUpsample(32,16)
+        self.out = ConvBlock(in_channels=16,out_channels=1)
+    
+    def forward(self,X):
+
+        clip_features = self.clip_feature_extractor(X)
+        resnet_features = self.encoder(X)
+
+        classification = self.classifier_head(clip_features)
+
+        dec1 = self.dec1(resnet_features)
+        dec2 = self.dec2(dec1)
+        dec3 = self.dec3(dec2)
+        dec4 = self.dec4(dec3)
+        dec5 = self.dec5(dec4)
+        out = self.out(dec5)
+
+        return out, classification
 
 if __name__ == '__main__':
     dataset_loc = '../../Datasets/Oxford-IIIT-Pet-Augmented'
@@ -130,8 +164,11 @@ if __name__ == '__main__':
 
     image = train_dataset[0][0].unsqueeze(0)
 
-    print(image.size())
 
-    model = ClipAutoencoder()
 
-    print(model(image).size())
+    model = ClipResSegmentationClassification()
+
+    mask, label = model(image)
+
+    print(f"mask size:{mask.size()}")
+    print(f"class size: {label.size()}")
