@@ -322,8 +322,6 @@ def show_segment_class_datapoint(datapoint):
 
 def convert_prediciton(masks, classes):
 
-    B, C, H, W = masks.size()
-
     det_masks = (masks > 0.5).float()
     det_classes = (classes > 0.5).float()
 
@@ -338,8 +336,6 @@ def convert_prediciton(masks, classes):
 
 def convert_targets(targets):
     masks, classes = targets
-
-    B, C, H, W = masks.size()
 
     cat_masks = masks * (1 - classes.unsqueeze(-1).unsqueeze(-1))
     dog_masks = masks * classes.unsqueeze(-1).unsqueeze(-1)
