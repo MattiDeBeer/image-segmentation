@@ -25,7 +25,7 @@ if __name__ == '__main__':
     ###### Hyperperameters ###########
     model = ClipResSegmentationClassification()
 
-    num_epochs = 2
+    num_epochs = 200
     batch_size = 100
     num_workers = core_num - 2
 
