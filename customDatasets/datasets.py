@@ -31,37 +31,9 @@ class CustomImageDataset(Dataset):
 
         self.augmentations_per_datapoint = augmentations_per_datapoint + 1
 
-        self.image_transform  = torch.nn.Sequential(
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomRotation(90),
-
-            ### Image only transforms ###
-            transforms.ColorJitter(brightness=0.4, contrast=0.3, saturation=0.2, hue=0.2),
-            transforms.GaussianBlur(21)
-        )
-        
-        self.mask_transform = torch.nn.Sequential(
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomRotation(90),
-        )
-
     def __len__(self):
         return(len(self.dataset) * self.augmentations_per_datapoint)
-    
-    def _transform_datapoint(self,image,mask):
 
-        #Generate a random seed
-        seed = torch.randint(0, 2**32, (1,)).item()
-
-        random.seed(seed)
-        torch.manual_seed(seed)
-        image = self.image_transform(image)
-
-        random.seed(seed)
-        torch.manual_seed(seed)
-        mask = self.mask_transform(mask.unsqueeze(0)).squeeze(0)
-
-        return image, mask
     
     def _deserialize_datapoint(self,datapoint):
         image = self._deserialize_numpy(datapoint['image'])
@@ -89,9 +61,6 @@ class CustomImageDataset(Dataset):
 
         datapoint = self.dataset[image_index]
         image, mask = self._deserialize_datapoint(datapoint)
-
-        if idx % self.augmentations_per_datapoint != 0:
-            image, mask = self._transform_datapoint(image,mask)
 
         return image, mask
 
@@ -205,8 +174,6 @@ class CustomImageDatasetRobust(Dataset):
 
         return image, mask
 
-
-        
 class ClassImageDataset(Dataset):
 
     def __init__(self,dataset_loc = 'Data/Oxford-IIIT-Pet-Augmented', augmentations_per_datapoint = 2, split='validation'):
@@ -354,12 +321,12 @@ class ClassImageDatasetGPU(Dataset):
         return image, (mask, label)
 
 
-class CustomCollateFn:
+class CustomCollateFnClass:
     def __init__(self, augmentations_per_datapoint):
     
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.augmentations_per_datapoint = 2
+        self.augmentations_per_datapoint = augmentations_per_datapoint
 
         self.image_transform  = torch.nn.Sequential(
             transforms.RandomHorizontalFlip(),
@@ -409,3 +376,53 @@ class CustomCollateFn:
         labels = (transformed_masks,class_labels)
 
         return transformed_images, labels
+    
+class CustomCollateFn:
+    def __init__(self, augmentations_per_datapoint):
+    
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.augmentations_per_datapoint = augmentations_per_datapoint
+
+        self.image_transform  = torch.nn.Sequential(
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(90),
+
+            ### Image only transforms ###
+            transforms.ColorJitter(brightness=0.4, contrast=0.3, saturation=0.2, hue=0.2),
+            transforms.GaussianBlur(21)
+        ).to(self.device)
+        
+        self.mask_transform = torch.nn.Sequential(
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(90),
+        ).to(self.device)
+
+    def __call__(self, batch):
+
+        images, labels = zip(*batch)  # Unpack batch
+
+        images = torch.stack(images)
+        masks = torch.stack(masks)
+
+        masks = masks.pin_memory().to(self.device, non_blocking=True)
+        images = images.pin_memory().to(self.device, non_blocking=True)
+
+        saved_images = images[::self.augmentations_per_datapoint+1]
+        saved_masks = masks[::self.augmentations_per_datapoint+1]
+
+        #Generate a random seed
+        seed = torch.randint(0, 2**32, (1,)).item()
+
+        random.seed(seed)
+        torch.manual_seed(seed)
+        transformed_images = self.image_transform(images)
+
+        random.seed(seed)
+        torch.manual_seed(seed)
+        transformed_masks = self.mask_transform(masks.unsqueeze(1)).squeeze(1)
+
+        transformed_images[::self.augmentations_per_datapoint+1] = saved_images
+        transformed_masks[::self.augmentations_per_datapoint+1] = saved_masks
+
+        return transformed_images, transformed_masks

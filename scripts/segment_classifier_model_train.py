@@ -1,4 +1,4 @@
-from customDatasets.datasets import ClassImageDatasetGPU, CustomCollateFn, ClassImageDataset
+from customDatasets.datasets import ClassImageDatasetGPU, CustomCollateFnClass, ClassImageDataset
 from models.UNet import *
 from models.CLIP_models import *
 from torch.utils.data import DataLoader
@@ -45,7 +45,7 @@ if __name__ == '__main__':
     train_dataset = ClassImageDatasetGPU(split='train',augmentations_per_datapoint=4)
     validation_dataset = ClassImageDataset(split='validation',augmentations_per_datapoint=0)
 
-    train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=False, num_workers=num_workers, collate_fn=CustomCollateFn(augmentations_per_datapoint))
+    train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=False, num_workers=num_workers, collate_fn=CustomCollateFnClass(augmentations_per_datapoint))
     validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=num_workers)
 
     #model = torch.compile(model, mode="max-autotune")
