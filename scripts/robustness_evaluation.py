@@ -61,14 +61,6 @@ def main():
     base_test_dataset = CustomImageDatasetRobust(
          split="test",
          augmentations_per_datapoint=0)
-
-
-
-    results_file = "results/robustness_scores.csv"
-    with open(results_file, "w", newline="") as f:
-         writer = csv.writer(f)
-         writer.writerow(["perturbation_type", "param_value", "mean_dice"])
-
     perturbations = {
         "gaussian_noise": {
             "class": GaussianPixelNoise,
@@ -105,31 +97,40 @@ def main():
     }
 
 
+
+    results_file = "results/robustness_scores.csv"
+    with open(results_file, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["perturbation_type", "param_value", "mean_dice"])
+
+    
+
+
  
-    for p_name, p_info in tqdm(perturbations.items()):
-         p_class = p_info["class"]
-         for param_val in tqdm(p_info["params"]):
-             # 5a) Create the perturbed dataset
-             perturbed_dataset = p_class(base_test_dataset, param_val)
-
-             # 5b) Build a DataLoader
-             loader = DataLoader(perturbed_dataset, batch_size=8, shuffle=False)
-
-             # 5c) Evaluate
-             total_dice = 0.0
-             for images, masks in loader:
-                 images, masks = images.to(device), masks.to(device)
-                 with torch.no_grad():
-                     preds = model(images)
-                 # compute dice for the batch
-                 batch_dice =dice_fn(preds, masks)
-                 total_dice += batch_dice.item()  
-
-             mean_dice = total_dice / len(loader)
-
-             # 5d) Write results to CSV
-             writer.writerow([p_name, param_val, f"{mean_dice:.4f}"])
-             print(f"{p_name} param={param_val}, Dice={mean_dice:.4f}")
+        for p_name, p_info in tqdm(perturbations.items()):
+             p_class = p_info["class"]
+             for param_val in tqdm(p_info["params"]):
+                 # 5a) Create the perturbed dataset
+                 perturbed_dataset = p_class(base_test_dataset, param_val)
+    
+                 # 5b) Build a DataLoader
+                 loader = DataLoader(perturbed_dataset, batch_size=8, shuffle=False)
+    
+                 # 5c) Evaluate
+                 total_dice = 0.0
+                 for images, masks in loader:
+                     images, masks = images.to(device), masks.to(device)
+                     with torch.no_grad():
+                         preds = model(images)
+                     # compute dice for the batch
+                     batch_dice =dice_fn(preds, masks)
+                     total_dice += batch_dice.item()  
+    
+                 mean_dice = total_dice / len(loader)
+    
+                 # 5d) Write results to CSV
+                 writer.writerow([p_name, param_val, f"{mean_dice:.4f}"])
+                 print(f"{p_name} param={param_val}, Dice={mean_dice:.4f}")
 
     print("Evaluation complete. Results saved to CSV.")
 
