@@ -277,7 +277,7 @@ class ClassImageDataset(Dataset):
 
         segment_mask = cat_mask + dog_mask + background_mask
 
-        return image, torch.tensor(segment_mask), torch.tensor([label])
+        return image, torch.tensor(segment_mask).float(), torch.tensor([label]).float()
     
     def _deserialize_numpy(self,byte_data, shape=(256,256,3), dtype=np.uint8):
         return copy.deepcopy(np.frombuffer(byte_data, dtype=dtype).reshape(shape))
