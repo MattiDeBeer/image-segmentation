@@ -9,7 +9,6 @@ import torch.nn as nn
 from tqdm import tqdm
 from models.losses import HybridLoss, IoU, PixelAccuracy, Dice
 import sys
-import torch.multiprocessing as mp
 import os
 import time
 
