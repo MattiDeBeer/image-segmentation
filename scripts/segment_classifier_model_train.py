@@ -46,7 +46,7 @@ if __name__ == '__main__':
     train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
     validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
 
-    #model = torch.compile(model, mode="max-autotune")
+    model = torch.compile(model, mode="max-autotune")
     model.to(device)  # Then move to GPU
 
     optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
