@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
     save_location = get_next_run_folder(model_save_file)
 
-    train_dataset = ClassImageDataset(split='validation',augmentations_per_datapoint=4)
+    train_dataset = ClassImageDataset(split='train',augmentations_per_datapoint=4)
     validation_dataset = ClassImageDataset(split='validation',augmentations_per_datapoint=0)
 
     train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
