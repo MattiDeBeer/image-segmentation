@@ -29,8 +29,6 @@ if __name__ == '__main__':
     batch_size = 80
     num_workers = core_num - 2
 
-    model_save_file = "saved-models/SegmentClassifierClipRes"
-
     augmentations_per_datapoint = 2
 
     ##############################
@@ -39,8 +37,6 @@ if __name__ == '__main__':
 
     # Clear unused memory from the cache
     torch.cuda.empty_cache()
-
-    save_location = get_next_run_folder(model_save_file)
 
     train_dataset = ClassImageDatasetGPU(split='train',augmentations_per_datapoint=4)
     validation_dataset = ClassImageDataset(split='validation',augmentations_per_datapoint=0)
@@ -60,16 +56,6 @@ if __name__ == '__main__':
     pixel_acc = PixelAccuracy()
     dice = Dice()
 
-    save_training_info(model,
-                    optimizer,
-                    criterion,
-                    train_dataloader,
-                    validation_dataloader,
-                    save_location, 
-                    extra_params = {'num_params' : num_params})
-
-
-    write_csv_header(save_location)
 
     gradscaler = torch.GradScaler('cuda')
 
