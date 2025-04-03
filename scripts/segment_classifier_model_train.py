@@ -78,7 +78,7 @@ if __name__ == '__main__':
         
         # Training loop
         for inputs, targets in tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False):
-            inputs, = inputs.to(device, non_blocking=True)
+            inputs = inputs.to(device, non_blocking=True)
 
             mask_targets, class_targets = targets[0].to(device, non_blocking=True).unsqueeze(1), targets[1].to(device, non_blocking=True)
             
@@ -116,7 +116,7 @@ if __name__ == '__main__':
         
         with torch.no_grad():  # No gradients needed during validation
             for inputs, targets in tqdm(validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False):
-                inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
+                inputs = inputs.to(device, non_blocking=True)
                 mask_targets, class_targets = targets[0].to(device, non_blocking=True).unsqueeze(1), targets[1].to(device, non_blocking=True)
 
                 with torch.autocast('cuda'):
