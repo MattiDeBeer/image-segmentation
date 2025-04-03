@@ -7,7 +7,7 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 from tqdm import tqdm
-from models.losses import HybridLoss, IoULoss, PixelAccuracyLoss, DiceLoss
+from models.losses import HybridLoss, IoU, PixelAccuracy, Dice
 import sys
 import torch.multiprocessing as mp
 import os
@@ -55,6 +55,10 @@ if __name__ == '__main__':
     criterion = nn.BCEWithLogitsLoss()
 
     num_params = sum(p.numel() for p in model.parameters())
+
+    iou = IoU()
+    pixel_acc = PixelAccuracy()
+    dice = Dice()
 
     save_training_info(model,
                     optimizer,
@@ -130,9 +134,9 @@ if __name__ == '__main__':
                     outputs = convert_prediciton(pred_masks,pred_labels)
                     targets = convert_targets(mask_targets.squeeze(0),class_targets)
 
-                    iou_loss = IoULoss()(outputs, targets)
-                    pixel_acc_loss = PixelAccuracyLoss()(outputs, targets)
-                    dice_loss = DiceLoss()(outputs, targets)
+                    iou_loss = iou(outputs, targets)
+                    pixel_acc_loss = pixel_acc(outputs, targets)
+                    dice_loss = dice(outputs, targets)
                 
                 # Track the losses
                 running_val_loss += hybrid_loss.item()

@@ -11,11 +11,12 @@ class HybridLoss(nn.Module):
         self.combined_confusion_loss = CombinedConfusionLoss(incorrect_penalty=1, confusion_pairs=[(1,2)], confusion_penalty=1)
 
     def forward(self, pred, target):
-        return 0.25 * self.dice(pred, target) + 0.5 * self.ce(pred, target) + 0.25 * self.combined_confusion_loss(pred,target)
+
+        return 0.25 * self.dice(F.softmax(pred, dim=1), target) + 0.5 * self.ce(pred, target) + 0.25 * self.combined_confusion_loss(pred,target)
     
-class IoULoss(nn.Module):
+class IoU(nn.Module):
     def __init__(self, eps=1e-6):
-        super(IoULoss, self).__init__()
+        super(IoU, self).__init__()
         self.eps = eps
 
     def forward(self, preds, targets):
@@ -40,36 +41,19 @@ class IoULoss(nn.Module):
 
         return torch.mean(torch.stack(iou_per_class))  # change to 1 - IoU to make it a loss function
     
-class DiceLoss(nn.Module):
+class Dice(nn.Module):
     def __init__(self, eps=1e-6):
-        super(DiceLoss, self).__init__()
-        self.eps = eps
+        super(Dice, self).__init__()
+
+        self.dice_loss = smp.losses.DiceLoss(mode="multiclass")
 
     def forward(self, preds, targets):
-        """
-        preds: (B, C, H, W) - predicted probability maps (softmax applied)
-        targets: (B, H, W) - ground truth labels (long tensor)
-        """
-        num_classes = preds.shape[1]
-        preds = torch.nn.functional.softmax(preds, dim=1)  # Ensure softmax probabilities
-        targets_onehot = torch.nn.functional.one_hot(targets, num_classes).permute(0, 3, 1, 2).float()
-
-        dice_per_class = []
-        for c in range(num_classes):
-            pred_class = preds[:, c]
-            target_class = targets_onehot[:, c]
-
-            intersection = (pred_class * target_class).sum(dim=(1, 2))
-            total = (pred_class + target_class).sum(dim=(1, 2))
-
-            dice = (2. * intersection + self.eps) / (total + self.eps)
-            dice_per_class.append(dice)
-
-        return torch.mean(torch.stack(dice_per_class))  # convert to 1 - Dice to make it a loss function
+        
+        return 1 - self.dice_loss(F.softmax(preds,dim=1),targets)
     
-class PixelAccuracyLoss(nn.Module):
+class PixelAccuracy(nn.Module):
     def __init__(self):
-        super(PixelAccuracyLoss, self).__init__()
+        super(PixelAccuracy, self).__init__()
 
     def forward(self, preds, targets):
         """
@@ -112,6 +96,8 @@ class CombinedConfusionLoss(torch.nn.Module):
         """
         # Standard cross-entropy loss
         loss = F.cross_entropy(pred, target, reduction='none')
+
+        pred = F.softmax(pred, dim=1)
 
         # Get predicted class per pixel
         pred_classes = pred.argmax(dim=1)  # (B, H, W)
