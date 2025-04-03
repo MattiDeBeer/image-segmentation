@@ -117,7 +117,7 @@ class DummyDataset:
         else:
              label = torch.softmax(torch.rand(self.label_channels,self.width,self.height),dim=0)
 
-        return image, label
+        return image.to(self.device), label.to(self.device)
 
         
     

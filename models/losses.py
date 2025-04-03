@@ -1,17 +1,18 @@
 import segmentation_models_pytorch as smp
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class HybridLoss(nn.Module):
     def __init__(self):
         super().__init__()
         self.dice = smp.losses.DiceLoss(mode="multiclass")
         self.ce = nn.CrossEntropyLoss()
+        self.combined_confusion_loss = CombinedConfusionLoss(incorrect_penalty=1, confusion_pairs=[(1,2)], confusion_penalty=1)
 
     def forward(self, pred, target):
-        return 0.5 * self.dice(pred, target) + 0.5 * self.ce(pred, target)
+        return 0.25 * self.dice(pred, target) + 0.5 * self.ce(pred, target) + 0.25 * self.combined_confusion_loss(pred,target)
     
-
 class IoULoss(nn.Module):
     def __init__(self, eps=1e-6):
         super(IoULoss, self).__init__()
@@ -92,3 +93,36 @@ class PixelAccuracyLoss(nn.Module):
                 accuracies.append(class_acc)
         
         return torch.stack(accuracies).mean()  # Average accuracy across all classes
+    
+class CombinedConfusionLoss(torch.nn.Module):
+    def __init__(self, incorrect_penalty=2.0, confusion_pairs=[(1, 2)], confusion_penalty=2.0):
+        super().__init__()
+        self.incorrect_penalty = incorrect_penalty
+        self.confusion_pairs = confusion_pairs
+        self.confusion_penalty = confusion_penalty
+
+    def forward(self, pred, target):
+        """
+        Args:
+            pred: (B, C, H, W) - Raw logits from the model
+            target: (B, H, W) - Ground truth class labels (one class per image)
+
+        Returns:
+            loss: Scaled cross-entropy loss with additional penalties
+        """
+        # Standard cross-entropy loss
+        loss = F.cross_entropy(pred, target, reduction='none')
+
+        # Get predicted class per pixel
+        pred_classes = pred.argmax(dim=1)  # (B, H, W)
+
+        # Apply incorrect prediction penalty (general case)
+        incorrect_mask = pred_classes != target  # Pixels where prediction is incorrect
+        loss[incorrect_mask] *= self.incorrect_penalty
+
+        # Apply extra penalty for specific confusion pairs
+        for cls1, cls2 in self.confusion_pairs:
+            confusion_mask = ((pred_classes == cls1) & (target == cls2)) | ((pred_classes == cls2) & (target == cls1))
+            loss[confusion_mask] *= self.confusion_penalty  # Extra penalty for confusing these pairs
+
+        return loss.mean()

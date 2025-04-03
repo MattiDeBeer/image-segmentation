@@ -1,5 +1,5 @@
 
-from customDatasets.datasets import CustomImageDataset
+from customDatasets.datasets import CustomImageDataset, DummyDataset
 from models.UNet import UNet
 from torch.utils.data import DataLoader
 from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header,log_loss_to_csv
@@ -42,8 +42,11 @@ if __name__ == '__main__':
 
     save_location = get_next_run_folder(model_save_file)
 
-    train_dataset = CustomImageDataset(split='train',augmentations_per_datapoint=4)
-    validation_dataset = CustomImageDataset(split='validation',augmentations_per_datapoint=0)
+    #train_dataset = CustomImageDataset(split='train',augmentations_per_datapoint=4)
+    #validation_dataset = CustomImageDataset(split='validation',augmentations_per_datapoint=0)
+
+    train_dataset = DummyDataset(label_channels=3,length=100)
+    validation_dataset = DummyDataset(label_channels=3,length=100)
 
     train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
     validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
@@ -69,7 +72,7 @@ if __name__ == '__main__':
 
     gradscaler = torch.GradScaler('cuda')
 
-    for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False, disable=tqdm_disable):
+    for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False):
         
         model.train()
         running_loss = 0.0
@@ -79,7 +82,7 @@ if __name__ == '__main__':
         start_time = time.time()
         
         # Training loop
-        for inputs, targets in tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False, disable=tqdm_disable):
+        for inputs, targets in tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False):
             inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
             
             optimizer.zero_grad()  # Zero gradients from the previous step
@@ -115,7 +118,7 @@ if __name__ == '__main__':
         running_dice_loss = 0.0
         
         with torch.no_grad():  # No gradients needed during validation
-            for inputs, targets in tqdm(validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False, disable=tqdm_disable):
+            for inputs, targets in tqdm(validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False):
                 inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
 
                 with torch.autocast('cuda'):
@@ -140,26 +143,14 @@ if __name__ == '__main__':
         avg_pixel_acc_loss = running_pixel_acc_loss / len(validation_dataloader)
         avg_dice_loss = running_dice_loss / len(validation_dataloader)
         
-        if not tqdm_disable:
-            tqdm.write(f"Epoch: {epoch}")
-            tqdm.write(f"Rate: {rate:.1f} datapoints/s")
-            tqdm.write(f"Train Loss: {avg_train_loss:.4f}")
-            tqdm.write(f"Validation Loss: {avg_val_loss:.4f}")
-            tqdm.write(f"Val IoU: {avg_iou_loss:.4f}")
-            tqdm.write(f"Val Pixel Accuracy: {avg_pixel_acc_loss:.4f}")
-            tqdm.write(f"Val Dice: {avg_dice_loss:.4f}")
-            tqdm.write('\n')
-
-        if tqdm_disable:
-            sys.stdout(f"Epoch: {epoch}")
-            sys.stdout.write(f"Rate: {rate:.1f} datapoints/s")
-            sys.stdout(f"Train Loss: {avg_train_loss:.4f}")
-            sys.stdout(f"Validation Loss: {avg_val_loss:.4f}")
-            sys.stdout(f"Val IoU: {avg_iou_loss:.4f}")
-            sys.stdout(f"Val Pixel Accuracy: {avg_pixel_acc_loss:.4f}")
-            sys.stdout(f"Val Dice: {avg_dice_loss:.4f}")
-            sys.stdout('\n')
-
+        tqdm.write(f"Epoch: {epoch}")
+        tqdm.write(f"Rate: {rate:.1f} datapoints/s")
+        tqdm.write(f"Train Loss: {avg_train_loss:.4f}")
+        tqdm.write(f"Validation Loss: {avg_val_loss:.4f}")
+        tqdm.write(f"Val IoU: {avg_iou_loss:.4f}")
+        tqdm.write(f"Val Pixel Accuracy: {avg_pixel_acc_loss:.4f}")
+        tqdm.write(f"Val Dice: {avg_dice_loss:.4f}")
+        tqdm.write('\n')
 
         log_loss_to_csv(epoch,avg_train_loss,avg_val_loss, avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss, save_location)
         
