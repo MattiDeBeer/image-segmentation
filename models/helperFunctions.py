@@ -336,6 +336,22 @@ def convert_prediciton(masks, classes):
 
     return out_masks
 
+def convert_targets(targets):
+    masks, classes = targets
+
+    B, C, H, W = masks.size()
+
+    cat_masks = masks * (1 - classes.unsqueeze(-1).unsqueeze(-1))
+    dog_masks = masks * classes.unsqueeze(-1).unsqueeze(-1)
+
+    out_masks = cat_masks + 2 * dog_masks
+    out_masks = out_masks.long()
+
+    return out_masks
+
+
+
+
     
     
 
