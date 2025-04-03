@@ -45,8 +45,8 @@ if __name__ == '__main__':
     train_dataset = ClassImageDatasetGPU(split='train',augmentations_per_datapoint=4)
     validation_dataset = ClassImageDataset(split='validation',augmentations_per_datapoint=0)
 
-    train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=False, num_workers=num_workers, pin_memory=True, collate_fn=CustomCollateFn(augmentations_per_datapoint))
-    validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
+    train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=False, num_workers=num_workers, collate_fn=CustomCollateFn(augmentations_per_datapoint))
+    validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     model = torch.compile(model, mode="max-autotune")
     model.to(device)  # Then move to GPU
