@@ -68,9 +68,17 @@ class CustomImageDataset(Dataset):
         mask = self._deserialize_numpy(datapoint['mask'],shape=(256,256))
 
         image = torch.from_numpy(image).permute(2,0,1).float() / 255.0
-        mask = torch.from_numpy(np.where(mask == 255, 0, np.where(mask == 38, 1, np.where(mask == 75, 2, 0)))).long()
 
-        return image, mask
+        background_mask = np.where(mask == 255, 1,0)
+        cat_mask = np.where(mask == 38, 1, 0)
+        dog_mask = np.where(mask == 75,2,0)
+
+        if np.sum(cat_mask) > 0:
+            mask = cat_mask + background_mask
+        else:
+            mask = dog_mask + 2* background_mask
+
+        return image, torch.tensor(mask)
     
     def _deserialize_numpy(self,byte_data, shape=(256,256,3), dtype=np.uint8):
         return copy.deepcopy(np.frombuffer(byte_data, dtype=dtype).reshape(shape))
