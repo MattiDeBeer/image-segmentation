@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import os
 import json
 import csv
+from matplotlib.patches import Patch
+import torch
+import numpy as np
 
 def save_training_info(model, optimizer, loss_fn, train_dataloader, val_dataloader, file_path, extra_params=None):
     # Save the model structure (layers) as a dictionary
@@ -168,12 +171,16 @@ def show_datapoint_classes(datapoint):
     plt.imshow((label.cpu() == 2).float(), cmap='gray')
     plt.title('Dog Mask')
 
+    plt.subplot(144)
+    plt.imshow((label.cpu() == 0).float(), cmap='gray')
+    plt.title('Background mask')
+
     plt.show()
 
 def show_prediciton(input,output):
 
     image = input[0]
-    label = output[0]
+    label = torch.nn.functional.softmax(output[0],dim=0)
     
     plt.figure(figsize=(12,4))
 
@@ -183,17 +190,15 @@ def show_prediciton(input,output):
 
     plt.subplot(142)
     plt.imshow(label[0].cpu(), cmap='gray')
-    plt.title('Cat Mask')
+    plt.title('Background Mask')
 
     plt.subplot(143)
     plt.imshow(label[1].cpu(), cmap='gray')
-    plt.title('Dog Mask')
+    plt.title('Cat Mask')
 
-    if label.size()[0] >= 3:
-        
-        plt.subplot(144)
-        plt.imshow((label[2]).cpu(), cmap='gray')
-        plt.title('Background Mask')
+    plt.subplot(144)
+    plt.imshow((label[2]).cpu(), cmap='gray')
+    plt.title('Dog Mask')
 
 
 
@@ -254,5 +259,86 @@ def show_detailed_prediction(input,output):
 
     plt.tight_layout()
     plt.show()
+
+
+def plot_segmentation(image, prediction, class_colors=None, alpha=0.5):
+
+    class_labels = ['Background', 'Cat', 'Dog']
+
+    # Remove batch dimension
+    image = image[0]
+    prediction = prediction[0]
+
+    # Convert image tensor to NumPy (HxWxC)
+    if isinstance(image, torch.Tensor):
+        image = image.cpu().numpy().transpose(1, 2, 0)
+
+    # Convert prediction tensor to class index map
+    if isinstance(prediction, torch.Tensor):
+        prediction = torch.nn.functional.softmax(prediction, dim=0).argmax(dim=0).cpu().numpy()
+
+    # Define default colors if none provided
+    num_classes = max(prediction.max() + 1, len(class_labels))  # Ensure it covers all classes
+    if class_colors is None:
+        class_colors = {i: (np.random.randint(0, 255), np.random.randint(0, 255), np.random.randint(0, 255)) for i in range(num_classes)}
+
+    # Create overlay mask
+    overlay = np.zeros_like(image)
+    for cls, color in class_colors.items():
+        overlay[prediction == cls] = np.array(color) / 255.0  # Normalize colors to [0,1]
+
+    # Blend the overlay with the image
+    blended = (1 - alpha) * image + alpha * overlay
+
+    # Plot the result
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.imshow(blended)
+    ax.axis("off")
+
+    # Create legend
+    legend_patches = [Patch(color=np.array(color) / 255, label=class_labels[cls]) for cls, color in class_colors.items() if cls < len(class_labels)]
+    ax.legend(handles=legend_patches, loc='upper right')
+
+    plt.show()
+
+def show_segment_class_datapoint(datapoint):
+    image = datapoint[0]
+    segment_mask = datapoint[1][0]
+    segment_class = datapoint[1][1]
+
+    print(f"Segment Class: {segment_class}")
+
+    plt.figure(figsize=(12,4))
+
+    plt.subplot(141)
+    plt.imshow(image.permute(1,2,0).cpu())
+    plt.title('Original Image')
+
+    plt.subplot(142)
+    plt.imshow(segment_mask.cpu(), cmap='gray')
+    plt.title(f"Mask for class: {segment_class}")
+
+    plt.show()
+
+def convert_prediciton(masks, classes):
+
+    B, C, H, W = masks.size()
+
+    det_masks = (masks > 0.5).float()
+    det_classes = (classes > 0.5).float()
+
+    bg_masks = 1 - det_masks
+
+    cat_masks = det_masks * (1 - det_classes.unsqueeze(-1).unsqueeze(-1))
+    dog_masks = det_masks * det_classes.unsqueeze(-1).unsqueeze(-1)
+
+    out_masks = torch.cat([bg_masks,cat_masks,dog_masks], dim=1)
+
+    return out_masks
+
+    
+    
+
+
 
 
