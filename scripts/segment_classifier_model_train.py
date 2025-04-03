@@ -46,7 +46,7 @@ if __name__ == '__main__':
     validation_dataset = ClassImageDataset(split='validation',augmentations_per_datapoint=0)
 
     train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=False, num_workers=num_workers, collate_fn=CustomCollateFn(augmentations_per_datapoint))
-    validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=num_workers)
 
     model = torch.compile(model, mode="max-autotune")
     model.to(device)  # Then move to GPU
@@ -117,8 +117,8 @@ if __name__ == '__main__':
         
         with torch.no_grad():  # No gradients needed during validation
             for inputs, targets in tqdm(validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False):
-                inputs = inputs
-                mask_targets, class_targets = targets[0].unsqueeze(1), targets[1]
+                inputs = inputs.to(device, non_blocking = True)
+                mask_targets, class_targets = targets[0].to(device, non_blocking = True).unsqueeze(1), targets[1].to(device, non_blocking = True)
 
                 with torch.autocast('cuda'):
                     # Forward pass
