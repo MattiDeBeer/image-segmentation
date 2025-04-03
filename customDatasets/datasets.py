@@ -113,7 +113,7 @@ class DummyDataset:
  
         image = torch.rand(self.image_channels,self.width,self.height)
         if self.label_channels == 1:
-            label = torch.randint(0, 3, (self.width, self.height), dtype=torch.long)
+            label = torch.randint(0, 3, (self.width, self.height)).long()
         else:
              label = torch.softmax(torch.rand(self.label_channels,self.width,self.height),dim=0)
 
