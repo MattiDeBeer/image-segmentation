@@ -29,7 +29,7 @@ if __name__ == '__main__':
     batch_size = 100
     num_workers = core_num - 2
 
-    model_save_file = "saved-models/Test"
+    model_save_file = "saved-models/SegmentClassifierClipRes"
 
     ##############################
 
@@ -156,4 +156,11 @@ if __name__ == '__main__':
 
         log_loss_to_csv(epoch,avg_train_loss,avg_val_loss, avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss, save_location)
         
+        # Remove previous model if it exists
+        if epoch > 0:
+            prev_model_path = f'{save_location}model_{epoch}.pth'
+            if os.path.exists(prev_model_path):
+                os.remove(prev_model_path)
+        
+        # Save current model
         torch.save(model.state_dict(), f'{save_location}model_{epoch+1}.pth')
