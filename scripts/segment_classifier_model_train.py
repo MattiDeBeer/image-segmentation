@@ -1,4 +1,4 @@
-from customDatasets.datasets import CustomImageDataset, ClassImageDataset
+from customDatasets.datasets import ClassImageDatasetGPU, CustomCollateFn, ClassImageDataset
 from models.UNet import *
 from models.CLIP_models import *
 from torch.utils.data import DataLoader
@@ -13,7 +13,7 @@ import torch.multiprocessing as mp
 import os
 import time
 
-core_num = 12
+core_num = 2
 
 os.environ["OMP_NUM_THREADS"] = str(core_num)
 os.environ["MKL_NUM_THREADS"] = str(core_num)
@@ -31,6 +31,8 @@ if __name__ == '__main__':
 
     model_save_file = "saved-models/SegmentClassifierClipRes"
 
+    augmentations_per_datapoint = 2
+
     ##############################
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -40,11 +42,11 @@ if __name__ == '__main__':
 
     save_location = get_next_run_folder(model_save_file)
 
-    train_dataset = ClassImageDataset(split='train',augmentations_per_datapoint=4)
+    train_dataset = ClassImageDatasetGPU(split='train',augmentations_per_datapoint=4)
     validation_dataset = ClassImageDataset(split='validation',augmentations_per_datapoint=0)
 
-    train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
-    validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
+    train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=False, num_workers=num_workers, pin_memory=True, collate_fn=CustomCollateFn(augmentations_per_datapoint))
+    validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
 
     model = torch.compile(model, mode="max-autotune")
     model.to(device)  # Then move to GPU
@@ -78,9 +80,8 @@ if __name__ == '__main__':
         
         # Training loop
         for inputs, targets in tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False):
-            inputs = inputs.to(device, non_blocking=True)
 
-            mask_targets, class_targets = targets[0].to(device, non_blocking=True).unsqueeze(1), targets[1].to(device, non_blocking=True)
+            mask_targets, class_targets = targets[0].unsqueeze(1), targets[1]
             
             optimizer.zero_grad()  # Zero gradients from the previous step
             
@@ -116,8 +117,8 @@ if __name__ == '__main__':
         
         with torch.no_grad():  # No gradients needed during validation
             for inputs, targets in tqdm(validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False):
-                inputs = inputs.to(device, non_blocking=True)
-                mask_targets, class_targets = targets[0].to(device, non_blocking=True).unsqueeze(1), targets[1].to(device, non_blocking=True)
+                inputs = inputs
+                mask_targets, class_targets = targets[0].unsqueeze(1), targets[1]
 
                 with torch.autocast('cuda'):
                     # Forward pass
