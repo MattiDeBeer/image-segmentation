@@ -13,10 +13,6 @@ import torch.multiprocessing as mp
 import os
 import time
 
-core_num = 2
-
-os.environ["OMP_NUM_THREADS"] = str(core_num)
-os.environ["MKL_NUM_THREADS"] = str(core_num)
 
 if __name__ == '__main__':
 
@@ -27,7 +23,6 @@ if __name__ == '__main__':
 
     num_epochs = 200
     batch_size = 100
-    num_workers = core_num - 2
 
     model_save_file = "saved-models/SegmentClassifierClipRes"
 
@@ -45,8 +40,8 @@ if __name__ == '__main__':
     train_dataset = ClassImageDatasetGPU(split='train',augmentations_per_datapoint=4)
     validation_dataset = ClassImageDataset(split='validation',augmentations_per_datapoint=0)
 
-    train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=False, num_workers=num_workers, collate_fn=CustomCollateFnClass(augmentations_per_datapoint))
-    validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=num_workers)
+    train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=False,  collate_fn=CustomCollateFnClass(augmentations_per_datapoint))
+    validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=False, pin_memory=True)
 
     #model = torch.compile(model, mode="max-autotune")
     model.to(device)  # Then move to GPU
