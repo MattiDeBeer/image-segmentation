@@ -12,7 +12,7 @@ import copy
     
 class CustomImageDataset(Dataset):
 
-    def __init__(self,dataset_loc = 'Data/Oxford-IIIT-Pet-Augmented', augmentations_per_datapoint = 2, split='validation', cache=False):
+    def __init__(self,dataset_loc = 'Data/Oxford-IIIT-Pet-Augmented', augmentations_per_datapoint = 0, split='validation', cache=False):
         
         if split not in ['train', 'validation', 'test']:
             raise ValueError(f"split must be one of: 'train', 'validation', 'test'. You selected {split}")
