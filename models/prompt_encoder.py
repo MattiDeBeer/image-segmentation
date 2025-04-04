@@ -27,51 +27,34 @@ class PromptEncoder(nn.Module):
     
 class SegmentationModelWithPrompt(nn.Module):
     def __init__(self, image_encoder, prompt_encoder, decoder, fusion_method='concat'):
-        """
-        image_encoder: Pre-trained (frozen) image encoder that returns a dict of features including "bottleneck".
-        prompt_encoder: Trainable module that processes the prompt heatmap.
-        decoder: Segmentation decoder (e.g., SegmentationDecoderSkip).
-        fusion_method: 'concat' (default) or 'add' to fuse the prompt features with the bottleneck.
-        """
         super().__init__()
         self.image_encoder = image_encoder
         self.prompt_encoder = prompt_encoder
         self.decoder = decoder
         self.fusion_method = fusion_method
-        
-        # If using concatenation, the bottleneck and prompt encoder outputs must be combined.
-        # Assume both produce features with 512 channels.
+
         if fusion_method == 'concat':
-            # After concatenation, you'll have 1024 channels.
-            # Use a 1x1 conv to project back to 512 channels.
+            # Assuming image_encoder produces 512 channels and prompt_encoder also outputs 512,
+            # concatenation gives 1024 channels. We project back to 512 channels.
             self.fuse_conv = nn.Conv2d(1024, 512, kernel_size=1)
         elif fusion_method == 'add':
-            # For addition, they need to have the same number of channels.
+            # For addition, both must have the same number of channels.
             pass
 
     def forward(self, image, prompt):
-        # Process the image to get features.
-        features = self.image_encoder(image)  # Expected dict: {x0, enc1, enc2, enc3, bottleneck}
-        
-        # Process the prompt heatmap.
-        prompt_feat = self.prompt_encoder(prompt)  # Expected shape: [B, 512, H/?, W/?]
-        
-        # Fuse prompt features into the bottleneck.
-        # Assume the bottleneck from image_encoder has shape [B, 512, H, W].
+        features = self.image_encoder(image)  # e.g., returns {"bottleneck": [B, 512, H, W], ...}
+        prompt_feat = self.prompt_encoder(prompt)  # Expected shape: [B, 512, H, W] (or upsampled to match)
         if self.fusion_method == 'concat':
             fused = torch.cat([features["bottleneck"], prompt_feat], dim=1)  # [B, 1024, H, W]
-            fused = self.fuse_conv(fused)  # Reduce back to [B, 512, H, W]
+            fused = self.fuse_conv(fused)  # Now [B, 512, H, W]
         elif self.fusion_method == 'add':
             fused = features["bottleneck"] + prompt_feat
         else:
             raise ValueError("Invalid fusion method specified")
-        
-        # Replace the bottleneck with the fused features.
         features["bottleneck"] = fused
-        
-        # Pass the modified features to the decoder.
         seg_out = self.decoder(features)
         return seg_out
+
 
 if __name__ == "__main__":
     # Load the autoencoder and freeze its encoder.
