@@ -1,14 +1,13 @@
 from customDatasets.datasets import CustomImageDataset
-from processing_blocks import DataAugmentor
+from models.processing_blocks import DataAugmentor
 from models.UNet import UNet
 from torch.utils.data import DataLoader
-from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header,log_loss_to_csv
+from models.helperFunctions import *
 import torch
 import torch.optim as optim
 import torch.nn as nn
 from tqdm import tqdm
-from models.losses import HybridLoss, IoULoss, PixelAccuracyLoss, DiceLoss
-import sys
+from models.losses import HybridLoss, IoU, PixelAccuracy, Dice
 import torch.multiprocessing as mp
 import os
 import time
@@ -18,7 +17,8 @@ class TrainingWrapper:
     def __init__(self,
                  num_workers = 12,
                  batch_size = 100,
-                 model = UNet(),
+                 model_class = UNet,
+                 model_arguments = {},
                  save_location = "saved-models/Test",
                  train_dataset_class = CustomImageDataset,
                  validation_dataset_class = CustomImageDataset,
@@ -53,8 +53,11 @@ class TrainingWrapper:
         self.train_dataloader = DataLoader(train_dataset,batch_size = batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
         self.validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
 
-        self.data_augmentor = data_augmentor_class(augmentations_per_datapoint)
+        data_augmentor = data_augmentor_class(augmentations_per_datapoint)
+        #data_augmentor = torch.compile(data_augmentor, **model_compilation_args)
+        self.data_augmentor = data_augmentor.to(self.device)
 
+        model = model_class(**model_arguments)
         model = torch.compile(model, **model_compilation_args)
         self.model = model.to(self.device)  # Then move to GPU
 
@@ -78,6 +81,10 @@ class TrainingWrapper:
     def train(self, num_epochs):
 
         gradscaler = torch.GradScaler('cuda')
+
+        iou = IoU()
+        dice = Dice()
+        pixel_acc = PixelAccuracy()
 
         for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False):
             
@@ -134,9 +141,9 @@ class TrainingWrapper:
                     
                     # Calculate different losses
                     hybrid_loss = self.criterion(outputs, targets)
-                    iou_loss = IoULoss()(outputs, targets)
-                    pixel_acc_loss = PixelAccuracyLoss()(outputs, targets)
-                    dice_loss = DiceLoss()(outputs, targets)
+                    iou_loss = iou(outputs, targets)
+                    pixel_acc_loss = pixel_acc(outputs, targets)
+                    dice_loss = dice(outputs, targets)
                 
                 # Track the losses
                 running_val_loss += hybrid_loss.item()
