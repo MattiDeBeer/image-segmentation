@@ -17,6 +17,7 @@ def cleanup_ddp():
     dist.destroy_process_group()
 
 def main_ddp(rank, world_size):
+
     setup_ddp(rank, world_size)
 
     batch_size = 10
@@ -38,7 +39,7 @@ def main_ddp(rank, world_size):
     val_dataloader = DataLoader(validation_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=num_workers, pin_memory=True)
 
     trainer = DistributedTrainingWrapper(rank, ddp_model, train_dataloader, val_dataloader, num_workers=num_workers, batch_size=batch_size, augmentor=DataAugmentor)
-    trainer.train(10)
+    trainer.train(2)
 
     cleanup_ddp()
 
