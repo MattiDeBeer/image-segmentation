@@ -12,6 +12,8 @@ import torch.nn.functional as F
 from transformers import CLIPProcessor, CLIPModel
 import torchvision.models as models
 import torchvision.transforms as transforms
+import random
+import kornia.augmentation as K
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, padding=1):
@@ -164,3 +166,47 @@ class CrossAttentionFusion(nn.Module):
         attn_output = attn_output.permute(1, 2, 0).view(B, C, H, W)  # Reshape back
 
         return attn_output
+    
+class DataAugmentor(nn.Module):
+
+    def __init__(self,augmentations_per_datapoint):
+
+        super().__init__()
+        
+        self.augmentations_per_datapoint = augmentations_per_datapoint
+
+        self.geometric_transforms  = torch.nn.Sequential(
+            K.RandomHorizontalFlip(),
+            K.RandomRotation(90,resample='nearest', same_on_batch=False),
+        )
+
+        self.colour_transforms = torch.nn.Sequential(
+            K.ColorJitter(brightness=0.4, contrast=0.3, saturation=0.2, hue=0.2, same_on_batch=False),
+            K.RandomGaussianBlur(kernel_size=(5, 5), sigma=(0.1, 2.0), p=1.0, same_on_batch=False)
+        )
+
+    def transform_batch(self, images, masks):
+
+        concatenated_batch = torch.cat([images, masks.unsqueeze(1).float()], dim=1)
+
+        concatenated_batch= self.geometric_transforms(concatenated_batch)
+
+        masks = concatenated_batch[:,3,:,:]
+        images = concatenated_batch[:,0:3,:,:]
+
+        images = self.colour_transforms(images)
+
+
+        return images, masks
+        
+    def forward(self, images, masks):
+
+        saved_images = images[::self.augmentations_per_datapoint+1]
+        saved_masks = masks[::self.augmentations_per_datapoint+1]
+
+        transformed_images, transformed_masks = self.transform_batch(images, masks)
+
+        transformed_images[::self.augmentations_per_datapoint+1] = saved_images
+        transformed_masks[::self.augmentations_per_datapoint+1] = saved_masks
+
+        return transformed_images, transformed_masks
