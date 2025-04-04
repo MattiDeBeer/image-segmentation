@@ -190,7 +190,6 @@ class DistributedTrainingWrapper:
                  train_dataloader,
                  validation_dataloader,
                  data_augmentor,
-                 num_workers = 0,
                  batch_size = 100,
                  save_location = None,   
                  criterion_class = HybridLoss, 
@@ -198,16 +197,6 @@ class DistributedTrainingWrapper:
                  optimizer_args = {'lr': 0.001, 'weight_decay' : 1e-4},
                  ):
     
-
-        if num_workers > 0:
-            os.environ["OMP_NUM_THREADS"] = str(num_workers)
-            os.environ["MKL_NUM_THREADS"] = str(num_workers)
-
-        mp.set_start_method('spawn', force=True)
-
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-        torch.cuda.empty_cache()
 
         if save_location is None:
             save_location = "saved-models/" + model.__class__.__name__
@@ -243,7 +232,7 @@ class DistributedTrainingWrapper:
         if self.rank == 0:
             write_csv_header(self.save_location)
 
-        gradscaler = torch.GradScaler(self.device.type)
+        gradscaler = torch.GradScaler('cuda')
 
         iou = IoU()
         dice = Dice()
@@ -258,14 +247,14 @@ class DistributedTrainingWrapper:
             
             # Training loop
             for inputs, targets in tqdm(self.train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False):
-                inputs, targets = inputs.to(self.device, non_blocking=True), targets.to(self.device, non_blocking=True)
+                inputs, targets = inputs.to(self.rank, non_blocking=True), targets.to(self.rank, non_blocking=True)
 
                 inputs, targets = self.data_augmentor(inputs,targets)
                 
                 self.optimizer.zero_grad()  # Zero gradients from the previous step
                 
                 # Forward pass
-                with torch.autocast(self.device.type):
+                with torch.autocast('cuda'):
                     outputs = self.model(inputs)
                     loss = self.criterion(outputs, targets)  # Compute the loss
                 
@@ -298,9 +287,9 @@ class DistributedTrainingWrapper:
             
             with torch.no_grad():  # No gradients needed during validation
                 for inputs, targets in tqdm(self.validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False):
-                    inputs, targets = inputs.to(self.device, non_blocking=True), targets.to(self.device, non_blocking=True)
+                    inputs, targets = inputs.to(self.rank, non_blocking=True), targets.to(self.rank, non_blocking=True)
 
-                    with torch.autocast(self.device.type):
+                    with torch.autocast('cuda'):
                         # Forward pass
                         outputs = self.model(inputs)
                         

@@ -40,7 +40,7 @@ def main_ddp():
     model = UNet().to(rank)
     ddp_model = DDP(model, device_ids=[rank])
 
-    data_augmentor = DataAugmentor(augmentations_per_datapoint)
+    data_augmentor = DataAugmentor(augmentations_per_datapoint).to(rank)
 
     train_dataset = CustomImageDataset(split="train",augmentations_per_datapoint=augmentations_per_datapoint)
     validation_dataset = CustomImageDataset(split="validation",augmentations_per_datapoint=0)
@@ -51,7 +51,7 @@ def main_ddp():
     val_sampler = DistributedSampler(validation_dataset, num_replicas=world_size, rank=rank, shuffle=True)
     val_dataloader = DataLoader(validation_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=num_workers, pin_memory=True)
 
-    trainer = DistributedTrainingWrapper(rank, ddp_model, train_dataloader, val_dataloader, num_workers=num_workers, batch_size=batch_size, augmentor=data_augmentor)
+    trainer = DistributedTrainingWrapper(rank, ddp_model, train_dataloader, val_dataloader, data_augmentor, batch_size=batch_size)
     trainer.train(2)
 
     torch.distributed.barrier()
