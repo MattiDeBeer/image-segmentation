@@ -33,15 +33,17 @@ class CustomImageDataset(Dataset):
 
         self.cache = cache
 
+        self.dataset_length = len(self.dataset) * self.augmentations_per_datapoint
+
         if self.cache:
             self.dataset_cache = []
             for datapoint in tqdm(self.dataset, desc = f"Caching {split} dataset:", leave=False, total=len(self.dataset)):
                 self.dataset_cache.append(self._deserialize_datapoint(datapoint))
-                
+
             del self.dataset
 
     def __len__(self):
-        return(len(self.dataset) * self.augmentations_per_datapoint)
+        return self.dataset_length
 
     
     def _deserialize_datapoint(self,datapoint):
