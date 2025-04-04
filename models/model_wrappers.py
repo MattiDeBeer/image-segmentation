@@ -81,7 +81,7 @@ class TrainingWrapper:
 
     def train(self, num_epochs):
 
-        gradscaler = torch.GradScaler('cuda')
+        gradscaler = torch.GradScaler(self.device.type)
 
         iou = IoU()
         dice = Dice()
@@ -98,12 +98,12 @@ class TrainingWrapper:
             for inputs, targets in tqdm(self.train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False):
                 inputs, targets = inputs.to(self.device, non_blocking=True), targets.to(self.device, non_blocking=True)
 
-                inputs, targets = self.data_augmentor(inputs,targets)
+                #inputs, targets = self.data_augmentor(inputs,targets)
                 
                 self.optimizer.zero_grad()  # Zero gradients from the previous step
                 
                 # Forward pass
-                with torch.autocast('cuda'):
+                with torch.autocast(self.device.type):
                     outputs = self.model(inputs)
                     loss = self.criterion(outputs, targets)  # Compute the loss
                 
@@ -136,7 +136,7 @@ class TrainingWrapper:
             for inputs, targets in tqdm(self.validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False):
                 inputs, targets = inputs.to(self.device, non_blocking=True), targets.to(self.device, non_blocking=True)
 
-                with torch.autocast('cuda'):
+                with torch.autocast(self.device.type):
                     # Forward pass
                     outputs = self.model(inputs)
                     

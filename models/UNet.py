@@ -5,7 +5,7 @@ from models.processing_blocks import ConvBlockDownsample, ConvBlockUpsampleSkip,
 
 
 class UNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=2, activation = nn.Identity()):
+    def __init__(self, in_channels=3, out_channels=3, activation = nn.Identity()):
         super().__init__()
         
         self.input = nn.Conv2d(in_channels, 32, kernel_size=1, padding=0)

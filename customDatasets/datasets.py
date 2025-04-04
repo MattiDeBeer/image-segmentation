@@ -41,14 +41,10 @@ class CustomImageDataset(Dataset):
 
         image = torch.from_numpy(image).permute(2,0,1).float() / 255.0
 
-        background_mask = np.where(mask == 255, 1,0)
-        cat_mask = np.where(mask == 38, 1, 0)
-        dog_mask = np.where(mask == 75,2,0)
+        cat_mask = np.where(mask == 38, 1,0)
+        dog_mask = np.where(mask == 75, 2,0)
 
-        if np.sum(cat_mask) > 0:
-            mask = cat_mask + background_mask
-        else:
-            mask = dog_mask + 2* background_mask
+        mask = cat_mask + dog_mask
 
         return image, torch.tensor(mask)
     
