@@ -38,7 +38,7 @@ def main_ddp():
     data_augmentor = DataAugmentor(augmentations_per_datapoint)
 
     batch_size = 10
-    num_workers = 4
+    num_workers = 12
 
     train_dataset = CustomImageDataset(split="train", augmentations_per_datapoint=augmentations_per_datapoint)
 
