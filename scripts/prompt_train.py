@@ -50,7 +50,19 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, pi
 val_loader   = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
 
 autoencoder = Autoencoder(in_channels=3, out_channels=3)
-autoencoder.load_state_dict(torch.load("saved-models/pre_trained_autoencoder/model_32.pth"))
+ckpt = torch.load("saved-models/pre_trained_autoencoder_model/model_32.pth")
+new_ckpt = {}
+
+for key, val in ckpt.items():
+    # If the key starts with "_orig_mod.", remove that prefix
+    if key.startswith("_orig_mod."):
+        new_key = key.replace("_orig_mod.", "")
+    else:
+        new_key = key
+
+    new_ckpt[new_key] = val
+
+autoencoder.load_state_dict(new_ckpt)
 # Freeze image encoder
 for param in autoencoder.encoder.parameters():
     param.requires_grad = False
@@ -84,7 +96,7 @@ criterion = nn.CrossEntropyLoss()
 
 # Optionally, set up any logging, CSV writers, etc.
 from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header, log_loss_to_csv
-save_location = get_next_run_folder("saved-models/prompt_segmentation")
+save_location = get_next_run_folder("/tmp/saved-models/prompt_segmentation")
 
 num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 save_training_info(model, optimizer, criterion, train_loader, val_loader, save_location, extra_params={'num_params': num_params})
