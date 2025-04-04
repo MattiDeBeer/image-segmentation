@@ -32,8 +32,9 @@ class TrainingWrapper:
                  ):
     
 
-        os.environ["OMP_NUM_THREADS"] = str(num_workers)
-        os.environ["MKL_NUM_THREADS"] = str(num_workers)
+        if num_workers > 0:
+            os.environ["OMP_NUM_THREADS"] = str(num_workers)
+            os.environ["MKL_NUM_THREADS"] = str(num_workers)
 
         mp.set_start_method('spawn', force=True)
 
