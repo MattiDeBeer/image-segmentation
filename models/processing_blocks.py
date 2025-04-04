@@ -191,13 +191,13 @@ class DataAugmentor(nn.Module):
 
         concatenated_batch= self.geometric_transforms(concatenated_batch)
 
-        masks = concatenated_batch[:,3,:,:].long()
+        masks = concatenated_batch[:,3,:,:]
         images = concatenated_batch[:,0:3,:,:]
 
         images = self.colour_transforms(images)
 
 
-        return images, masks
+        return images, masks.long()
         
     def forward(self, images, masks):
 
