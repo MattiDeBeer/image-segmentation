@@ -231,7 +231,12 @@ class DistributedTrainingWrapper:
         dice = Dice()
         pixel_acc = PixelAccuracy()
 
-        for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False):
+        if self.rank == 0:
+            disable = False
+        else:
+            disable = True
+
+        for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False, disable=disable ):
             
             self.model.train()
             running_loss = 0.0
@@ -239,7 +244,7 @@ class DistributedTrainingWrapper:
             start_time = time.time()
             
             # Training loop
-            for inputs, targets in tqdm(self.train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False):
+            for inputs, targets in tqdm(self.train_dataloader, desc=f"[Rank : {self.rank}] Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False):
                 inputs, targets = inputs.to(self.rank, non_blocking=True), targets.to(self.rank, non_blocking=True)
 
                 inputs, targets = self.data_augmentor(inputs,targets)
@@ -279,7 +284,7 @@ class DistributedTrainingWrapper:
             torch.distributed.barrier()
             
             with torch.no_grad():  # No gradients needed during validation
-                for inputs, targets in tqdm(self.validation_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Validation",leave=False):
+                for inputs, targets in tqdm(self.validation_dataloader, desc=f"[Rank : {self.rank}] Epoch {epoch+1}/{num_epochs} Validation",leave=False):
                     inputs, targets = inputs.to(self.rank, non_blocking=True), targets.to(self.rank, non_blocking=True)
 
                     with torch.autocast('cuda'):
@@ -304,13 +309,13 @@ class DistributedTrainingWrapper:
             avg_pixel_acc_loss = running_pixel_acc_loss / len(self.validation_dataloader)
             avg_dice_loss = running_dice_loss / len(self.validation_dataloader)
             
-            tqdm.write(f"Epoch: {epoch}")
-            tqdm.write(f"Rate: {rate:.1f} datapoints/s")
-            tqdm.write(f"Train Loss: {avg_train_loss:.4f}")
-            tqdm.write(f"Validation Loss: {avg_val_loss:.4f}")
-            tqdm.write(f"Val IoU: {avg_iou_loss:.4f}")
-            tqdm.write(f"Val Pixel Accuracy: {avg_pixel_acc_loss:.4f}")
-            tqdm.write(f"Val Dice: {avg_dice_loss:.4f}")
+            tqdm.write(f"[Rank : {self.rank}] Epoch: {epoch}")
+            tqdm.write(f"[Rank : {self.rank}] Rate: {rate:.1f} datapoints/s")
+            tqdm.write(f"[Rank : {self.rank}] Train Loss: {avg_train_loss:.4f}")
+            tqdm.write(f"[Rank : {self.rank}] Validation Loss: {avg_val_loss:.4f}")
+            tqdm.write(f"[Rank : {self.rank}] Val IoU: {avg_iou_loss:.4f}")
+            tqdm.write(f"[Rank : {self.rank}] Val Pixel Accuracy: {avg_pixel_acc_loss:.4f}")
+            tqdm.write(f"[Rank : {self.rank}] Val Dice: {avg_dice_loss:.4f}")
             tqdm.write('\n')
 
             if self.rank == 0:
