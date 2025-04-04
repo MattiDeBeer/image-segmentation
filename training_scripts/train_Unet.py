@@ -11,10 +11,9 @@ if __name__ == '__main__':
         num_workers = 4,
         batch_size = 100,
         train_dataset_class = CustomImageDataset,
-        train_dataset_args = {'split' : 'test', 'cache' : True},
+        train_dataset_args = {'split' : 'test', 'cache' : True, 'augmentations_per_datapoint' : 4},
         validation_dataset_class= CustomImageDataset,
         validation_dataset_args = {'split' : 'validation', 'cache' : True},
-        augmentations_per_datapoint = 4,
     )
 
     Trainer.train(200)
