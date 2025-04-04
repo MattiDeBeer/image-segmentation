@@ -96,7 +96,7 @@ criterion = nn.CrossEntropyLoss()
 
 # Optionally, set up any logging, CSV writers, etc.
 from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header, log_loss_to_csv
-save_location = get_next_run_folder("saved-models/prompt_segmentation")
+save_location = get_next_run_folder("/tmp/saved-models/prompt_segmentation")
 
 num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 save_training_info(model, optimizer, criterion, train_loader, val_loader, save_location, extra_params={'num_params': num_params})
