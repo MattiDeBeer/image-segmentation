@@ -1,18 +1,18 @@
 import torch
 from torch.utils.data import Dataset
-from PIL import Image
-import os
-import sys
-import numpy as np
 import torchvision.transforms.v2 as transforms
 from datasets import load_dataset
-import copy
 from scripts.dataset_downloader import download_huggingface_dataset
+from tqdm import tqdm
+import numpy as np
+import torch
 import random
+import copy
+
     
 class CustomImageDataset(Dataset):
 
-    def __init__(self,dataset_loc = 'Data/Oxford-IIIT-Pet-Augmented', augmentations_per_datapoint = 2, split='validation'):
+    def __init__(self,dataset_loc = 'Data/Oxford-IIIT-Pet-Augmented', augmentations_per_datapoint = 2, split='validation', cache=False):
         
         if split not in ['train', 'validation', 'test']:
             raise ValueError(f"split must be one of: 'train', 'validation', 'test'. You selected {split}")
@@ -30,6 +30,15 @@ class CustomImageDataset(Dataset):
                 print(f"An unexpected error occurred: {e}")
 
         self.augmentations_per_datapoint = augmentations_per_datapoint + 1
+
+        self.cache = cache
+
+        if self.cache:
+            self.dataset_cache = []
+            for datapoint in tqdm(self.dataset, desc = f"Caching {split} dataset:", leave=False, total=len(self.dataset)):
+                self.dataset_cache.append(self._deserialize_datapoint(datapoint))
+                
+            del self.dataset
 
     def __len__(self):
         return(len(self.dataset) * self.augmentations_per_datapoint)
@@ -55,8 +64,11 @@ class CustomImageDataset(Dataset):
 
         image_index = idx // self.augmentations_per_datapoint
 
-        datapoint = self.dataset[image_index]
-        image, mask = self._deserialize_datapoint(datapoint)
+        if self.cache:
+            image, mask = self.dataset_cache[image_index]
+        else:
+            datapoint = self.dataset[image_index]
+            image, mask = self._deserialize_datapoint(datapoint)
 
         return image, mask
 
