@@ -19,7 +19,7 @@ class TrainingWrapper:
                  batch_size = 100,
                  model_class = UNet,
                  model_arguments = {},
-                 save_location = "saved-models/Test",
+                 save_location = None,
                  train_dataset_class = CustomImageDataset,
                  validation_dataset_class = CustomImageDataset,
                  train_dataset_args = {'split':'train','augmentations_per_datapoint' : 4},
@@ -42,6 +42,9 @@ class TrainingWrapper:
 
         torch.cuda.empty_cache()
 
+        if save_location is None:
+            save_location = "saved-models/" + model_class.__name__
+            
         self.save_location = get_next_run_folder(save_location)
 
         self.batch_size = batch_size
@@ -55,7 +58,7 @@ class TrainingWrapper:
         self.validation_dataloader = DataLoader(validation_dataset,batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
 
         data_augmentor = data_augmentor_class(augmentations_per_datapoint)
-        #data_augmentor = torch.compile(data_augmentor, **model_compilation_args)
+        data_augmentor = torch.compile(data_augmentor, **model_compilation_args)
         self.data_augmentor = data_augmentor.to(self.device)
 
         model = model_class(**model_arguments)
