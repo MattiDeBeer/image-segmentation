@@ -11,11 +11,22 @@ from torch.utils.data import DataLoader, DistributedSampler
 import torch.nn as nn
 
 def setup_ddp(rank, world_size):
-    local_rank = int(os.environ["LOCAL_RANK"])
-    os.environ["MASTER_ADDR"] = os.environ["SLURM_NODELIST"] if "SLURM_NODELIST" in os.environ else "localhost"
-    os.environ["MASTER_PORT"] = "12355"
+    if "SLURM_NODELIST" in os.environ:
+        os.environ["MASTER_ADDR"] = os.environ["SLURM_NODELIST"]
+    else:
+        os.environ["MASTER_ADDR"] = "localhost"  # Ensure this is localhost for single-node
+
+    os.environ["MASTER_PORT"] = "12355"  # You can pick any open port
+
+    # Initialize DDP
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    local_rank = int(os.environ["LOCAL_RANK"])  # The device to use for each process
     torch.cuda.set_device(local_rank)
+    torch.backends.cudnn.benchmark = True  # Enable benchmark mode for faster training
+    torch.backends.cudnn.deterministic = False  # Disable deterministic mode for faster training
+    torch.backends.cudnn.enabled = True  # Enable cuDNN
+    torch.cuda.empty_cache()  # Clear cache to avoid memory issues
+    print(f"Rank {rank} initialized DDP on device {local_rank}")
     return local_rank
 
 def cleanup_ddp():
