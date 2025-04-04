@@ -171,12 +171,6 @@ class TrainingWrapper:
 
             log_loss_to_csv(epoch,avg_train_loss,avg_val_loss, avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss, self.save_location)
             
-            # Delete previous model save if it exists (keep only latest)
-            if epoch > 0:
-                prev_model_path = f'{self.save_location}model_{epoch}.pth'
-                if os.path.exists(prev_model_path):
-                    os.remove(prev_model_path)
-
             # Save current model
             torch.save(self.model.state_dict(), f'{self.save_location}model_{epoch+1}.pth')
 
@@ -322,12 +316,6 @@ class DistributedTrainingWrapper:
             if self.rank == 0:
 
                 log_loss_to_csv(epoch,avg_train_loss,avg_val_loss, avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss, self.save_location)
-                
-                # Delete previous model save if it exists (keep only latest)
-                if epoch > 0:
-                    prev_model_path = f'{self.save_location}model_{epoch}.pth'
-                    if os.path.exists(prev_model_path):
-                        os.remove(prev_model_path)
 
                 # Save current model
                 torch.save(self.model.state_dict(), f'{self.save_location}model_{epoch+1}.pth')
