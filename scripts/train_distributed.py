@@ -22,7 +22,7 @@ def setup(rank, world_size):
 def loss_function(outputs,targets,criterion):
     return criterion(outputs,targets)
 
-def train(num_epochs, model, dataloader,rank, train_sampler,optimizer,criterion,save_location, validation_dataloader):
+def train(num_epochs, model, dataloader,rank, train_sampler,optimizer,criterion,save_location, validation_dataloader, augmentor):
     gradscaler = GradScaler('cuda')
     for epoch in range(0,num_epochs):
 
@@ -32,6 +32,8 @@ def train(num_epochs, model, dataloader,rank, train_sampler,optimizer,criterion,
         train_sampler.set_epoch(epoch)
         for images, labels in tqdm(dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False):
             images, labels = images.cuda(rank), labels.cuda(rank)
+
+            images, labels = augmentor(images, labels)
 
             optimizer.zero_grad()
 
@@ -112,11 +114,13 @@ def train_distributed(rank, world_size):
 
     num_workers = 0
 
+    augmentations_per_datapoint = 4
+
     # Clear unused memory from the cache
     torch.cuda.empty_cache()
 
     #load datasets
-    train_dataset = CustomImageDataset(split='train', cache=True)
+    train_dataset = CustomImageDataset(split='train', cache=True, augmentations_per_datapoint=augmentations_per_datapoint)
     val_dataset = CustomImageDataset(split='validation', cache=True)
 
     train_sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=True)
@@ -129,7 +133,8 @@ def train_distributed(rank, world_size):
     model = model.cuda(rank)  # Move to the correct device
     model = DDP(model, device_ids=[rank])
 
-    
+    augmentor = DataAugmentor(augmentations_per_datapoint).cuda(rank)
+    augmentor = DDP(augmentor, device_ids=[rank])
 
     #Optimizer and loss
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -149,7 +154,7 @@ def train_distributed(rank, world_size):
         write_csv_header(save_location)
 
 
-    train(num_epochs,model,train_dataloader,rank, train_sampler,optimizer,criterion,save_location,val_dataloader)
+    train(num_epochs,model,train_dataloader,rank, train_sampler,optimizer,criterion,save_location,val_dataloader, augmentor)
 
     #cleanup
     dist.destroy_process_group()
