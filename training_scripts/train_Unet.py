@@ -8,7 +8,7 @@ if __name__ == '__main__':
         model_class= UNet,
         model_arguments={'out_channels' : 3},
         model_compilation_args = {'mode' : 'max-autotune'},
-        num_workers = 4,
+        num_workers = 0,
         batch_size = 100,
         train_dataset_class = CustomImageDataset,
         train_dataset_args = {'split' : 'test', 'cache' : True, 'augmentations_per_datapoint' : 4},
