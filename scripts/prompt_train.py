@@ -50,7 +50,19 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, pi
 val_loader   = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
 
 autoencoder = Autoencoder(in_channels=3, out_channels=3)
-autoencoder.load_state_dict(torch.load("saved-models/pre_trained_autoencoder/model_32.pth"))
+ckpt = torch.load("saved-models/pre_trained_autoencoder_model/model_32.pth")
+new_ckpt = {}
+
+for key, val in ckpt.items():
+    # If the key starts with "_orig_mod.", remove that prefix
+    if key.startswith("_orig_mod."):
+        new_key = key.replace("_orig_mod.", "")
+    else:
+        new_key = key
+
+    new_ckpt[new_key] = val
+
+autoencoder.load_state_dict(new_ckpt)
 # Freeze image encoder
 for param in autoencoder.encoder.parameters():
     param.requires_grad = False
