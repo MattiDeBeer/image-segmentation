@@ -7,7 +7,7 @@ from customDatasets.datasets import DummyDataset
 
 class ClipResSegmentationModel(nn.Module):
 
-    def __init__(self,out_channels = 3):
+    def __init__(self, out_channels = 3, in_channels = 3, activation = nn.Identity() ):
         super().__init__()
 
         self.clip_feature_extractor = ClipFeatureExtractor(train=False)
@@ -125,7 +125,7 @@ class ClipAutoencoder(nn.Module):
     
 class ClipResSegmentationClassification(nn.Module):
 
-    def __init__(self):
+    def __init__(self, out_channels = 3, in_channels = 3, activation = nn.Identity() ):
         super().__init__()
 
         self.clip_feature_extractor = ClipFeatureExtractor(train=False)
