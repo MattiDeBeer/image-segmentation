@@ -199,7 +199,7 @@ class DistributedTrainingWrapper:
     
 
         if save_location is None:
-            save_location = "saved-models/" + model.__class__.__name__
+            save_location = "saved-models/" + model.module.__class__.__name__
 
         self.save_location = get_next_run_folder(save_location)
 
