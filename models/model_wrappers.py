@@ -187,7 +187,7 @@ class DistributedTrainingWrapper:
                  save_location = None,   
                  criterion_class = HybridLoss, 
                  optimizer_class = optim.Adam,
-                 optimizer_args = {'lr': 0.001, 'weight_decay' : 1e-4},
+                 optimizer_args = {'lr': 0.001, 'weight_decay' : 2e-4},
                  ):
     
 
