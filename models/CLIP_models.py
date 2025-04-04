@@ -164,8 +164,6 @@ if __name__ == '__main__':
 
     image = train_dataset[0][0].unsqueeze(0)
 
-
-
     model = ClipResSegmentationClassification()
 
     mask, label = model(image)
