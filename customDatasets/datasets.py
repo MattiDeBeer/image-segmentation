@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import random
 import copy
+import os
 
     
 class CustomImageDataset(Dataset):
@@ -36,9 +37,24 @@ class CustomImageDataset(Dataset):
         self.dataset_length = len(self.dataset) * self.augmentations_per_datapoint
 
         if self.cache:
-            self.dataset_cache = []
+            cache_file = os.path.join(dataset_loc, f"{split}_dataset.pt")
+            if os.path.exists(cache_file):
+                print(f"Loading cached dataset from {cache_file}")
+                self.dataset_cache = torch.load(cache_file)
+            else:
+                print(f"Cache not found. Creating and saving dataset cache at {cache_file}")
+                self.dataset_cache = []
+                for datapoint in tqdm(self.dataset, desc=f"Caching {split} dataset:", leave=False, total=len(self.dataset)):
+                    self.dataset_cache.append(self._deserialize_datapoint(datapoint))
+                
+                self.dataset_cache = torch.tensor(self.dataset_cache)
+                torch.save(self.dataset_cache, cache_file)
+                self.dataset = torch.load(cache_file)
+
+
             for datapoint in tqdm(self.dataset, desc = f"Caching {split} dataset:", leave=False, total=len(self.dataset)):
                 self.dataset_cache.append(self._deserialize_datapoint(datapoint))
+                self.cache
 
             del self.dataset
 
@@ -73,6 +89,8 @@ class CustomImageDataset(Dataset):
             image, mask = self._deserialize_datapoint(datapoint)
 
         return image, mask
+    
+
 
 
 class DummyDataset:
