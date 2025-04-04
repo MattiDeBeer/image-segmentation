@@ -73,13 +73,14 @@ class TrainingWrapper:
                         self.criterion,
                         self.train_dataloader,
                         self.validation_dataloader,
-                        save_location, 
+                        self.save_location, 
                         extra_params = {'num_params' : num_params})
 
 
-        write_csv_header(save_location)
 
     def train(self, num_epochs):
+
+        write_csv_header(self.save_location)
 
         gradscaler = torch.GradScaler(self.device.type)
 
@@ -98,7 +99,7 @@ class TrainingWrapper:
             for inputs, targets in tqdm(self.train_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} Training", unit=' batch', leave=False):
                 inputs, targets = inputs.to(self.device, non_blocking=True), targets.to(self.device, non_blocking=True)
 
-                #inputs, targets = self.data_augmentor(inputs,targets)
+                inputs, targets = self.data_augmentor(inputs,targets)
                 
                 self.optimizer.zero_grad()  # Zero gradients from the previous step
                 
