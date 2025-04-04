@@ -3,14 +3,14 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
-from customDatasets.datasets import ImageDatasetClasses, DummyDataset
+from customDatasets.datasets import CustomImageDataset
 from models.UNet import UNet
 from torch.utils.data import DataLoader
 from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header,log_loss_to_csv
 from tqdm import tqdm 
-from models.losses import HybridLoss, IoULoss, PixelAccuracyLoss, DiceLoss
-from torch.cuda.amp import autocast, GradScaler
-
+from models.losses import HybridLoss, IoU, PixelAccuracy, Dice
+from torch import autocast, GradScaler
+from models.processing_blocks import DataAugmentor
 
 
 #setup funciton
@@ -23,7 +23,7 @@ def loss_function(outputs,targets,criterion):
     return criterion(outputs,targets)
 
 def train(num_epochs, model, dataloader,rank, train_sampler,optimizer,criterion,save_location, validation_dataloader):
-
+    gradscaler = GradScaler('cuda')
     for epoch in range(0,num_epochs):
 
         running_loss = 0
@@ -39,9 +39,10 @@ def train(num_epochs, model, dataloader,rank, train_sampler,optimizer,criterion,
                 outputs = model(images)
                 loss = loss_function(outputs,labels,criterion)
 
-            # add mixed precision training
-            loss.backward()
-            optimizer.step()
+
+            gradscaler.scale(loss).backward()
+            gradscaler.step(optimizer)
+            gradscaler.update()
             
             running_loss += loss.item()
         
@@ -79,9 +80,9 @@ def validate(model, validation_dataloader, criterion, rank):
             
                 # Calculate different losses
                 hybrid_loss = criterion(outputs, targets)
-                iou_loss = IoULoss()(outputs, targets)
-                pixel_acc_loss = PixelAccuracyLoss()(outputs, targets)
-                dice_loss = DiceLoss()(outputs, targets)
+                iou_loss = IoU()(outputs, targets)
+                pixel_acc_loss = PixelAccuracy()(outputs, targets)
+                dice_loss = Dice()(outputs, targets)
             
             # Track the losses
             running_val_loss += hybrid_loss.item()
@@ -101,40 +102,23 @@ def validate(model, validation_dataloader, criterion, rank):
 def train_distributed(rank, world_size):
 
     setup(rank, world_size)
-
-    ### HYPERPARAMETERS ###
    
     model = UNet(out_channels = 3)
 
-    num_epochs = 250
+    num_epochs = 200
     batch_size = 16
-
-    uncertianty_mask_coefficient = 0
 
     model_save_file = "saved-models/Test"
 
-    num_workers = 2
-
-    ### for dice computers
-    dataset_loc = "mattidebeer/Oxford-IIIT-Pet-Augmented"
-
-    ## for cluster
-    #dataset_loc = "Dataset/Oxford-IIIT-Pet-Augmented"
-
-    ######################
+    num_workers = 0
 
     # Clear unused memory from the cache
     torch.cuda.empty_cache()
 
     #load datasets
-    train_dataset = ImageDatasetClasses(dataset=dataset_loc,split='train')
-    val_dataset = ImageDatasetClasses(dataset=dataset_loc,split='validation')
+    train_dataset = CustomImageDataset(split='train', cache=True)
+    val_dataset = CustomImageDataset(split='validation', cache=True)
 
-    #load datasets
-    #train_dataset = DummyDataset(label_channels=1, length = 500)
-    #val_dataset = DummyDataset(label_channels=1, length = 500)
-
-    #Use DistributedSampler to ensure each GPU gets different data
     train_sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=True)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers, pin_memory=True)
 
@@ -144,6 +128,8 @@ def train_distributed(rank, world_size):
     #compile model and wrap with DDP
     model = model.cuda(rank)  # Move to the correct device
     model = DDP(model, device_ids=[rank])
+
+    
 
     #Optimizer and loss
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -158,7 +144,8 @@ def train_distributed(rank, world_size):
                    train_dataloader,
                    val_dataloader,
                    save_location, 
-                   extra_params = {'uncertianty_mask_coefficient' : uncertianty_mask_coefficient})
+                   extra_params = {})
+
         write_csv_header(save_location)
 
 
