@@ -147,13 +147,12 @@ class TrainingWrapper:
                         hybrid_loss = self.criterion(outputs, targets)
                         iou_loss = iou(outputs, targets)
                         pixel_acc_loss = pixel_acc(outputs, targets)
-                        dice_loss = dice(outputs, targets)
                     
                     # Track the losses
                     running_val_loss += hybrid_loss.item()
                     running_iou_loss += iou_loss.item()
                     running_pixel_acc_loss += pixel_acc_loss.item()
-                    dice_loss = 2 * iou(outputs, targets) / (1 + iou(outputs, targets))
+                    running_dice_loss += 2 * iou(outputs, targets) / (1 + iou(outputs, targets))
             
             # Calculate average validation losses
             avg_val_loss = running_val_loss / len(self.validation_dataloader)
