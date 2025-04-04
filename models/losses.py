@@ -12,7 +12,7 @@ class HybridLoss(nn.Module):
 
     def forward(self, pred, target):
 
-        return 0.25 * self.dice(F.softmax(pred, dim=1), target) + 0.5 * self.ce(pred, target) + 0.25 * self.combined_confusion_loss(pred,target)
+        return  0.75 * self.ce(pred, target) + 0.25 * self.combined_confusion_loss(pred,target)
     
 class IoU(nn.Module):
     def __init__(self, eps=1e-6):
