@@ -39,7 +39,7 @@ def main_ddp():
 
     batch_size = 10
     num_workers = 4
-    
+
     train_dataset = CustomImageDataset(split="train", augmentations_per_datapoint=augmentations_per_datapoint)
 
     validation_dataset = CustomImageDataset(split="validation", augmentations_per_datapoint=0)
@@ -52,7 +52,7 @@ def main_ddp():
 
     val_dataloader = DataLoader(validation_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=num_workers, pin_memory=True)
 
-    trainer = DistributedTrainingWrapper(rank, ddp_model, train_dataloader, val_dataloader, data_augmentor, num_workers=num_workers, batch_size=batch_size)
+    trainer = DistributedTrainingWrapper(rank, ddp_model, train_dataloader, val_dataloader, data_augmentor, batch_size=batch_size)
 
     trainer.train(2)
     cleanup()
