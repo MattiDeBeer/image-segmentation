@@ -9,10 +9,10 @@ from models.processing_blocks import DataAugmentor
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
 import os
+import subprocess
 
 def setup_ddp():
-    import subprocess
-
+    
     rank = int(os.environ["SLURM_PROCID"])
     world_size = int(os.environ["SLURM_NTASKS"])
     local_rank = int(os.environ["SLURM_LOCALID"])
