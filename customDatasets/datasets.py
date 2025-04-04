@@ -9,7 +9,7 @@ import torch
 import random
 import copy
 import os
-
+import warnings
     
 class CustomImageDataset(Dataset):
 
@@ -39,22 +39,14 @@ class CustomImageDataset(Dataset):
         if self.cache:
             cache_file = os.path.join(dataset_loc, f"{split}_dataset.pt")
             if os.path.exists(cache_file):
-                print(f"Loading cached dataset from {cache_file}")
-                self.dataset_cache = torch.load(cache_file)
+                self.dataset_cache = torch.load(cache_file, weights_only=True)
             else:
                 print(f"Cache not found. Creating and saving dataset cache at {cache_file}")
                 self.dataset_cache = []
                 for datapoint in tqdm(self.dataset, desc=f"Caching {split} dataset:", leave=False, total=len(self.dataset)):
                     self.dataset_cache.append(self._deserialize_datapoint(datapoint))
-                
-                self.dataset_cache = torch.tensor(self.dataset_cache)
-                torch.save(self.dataset_cache, cache_file)
-                self.dataset = torch.load(cache_file)
-
-
-            for datapoint in tqdm(self.dataset, desc = f"Caching {split} dataset:", leave=False, total=len(self.dataset)):
-                self.dataset_cache.append(self._deserialize_datapoint(datapoint))
-                self.cache
+                    torch.save(self.dataset_cache, cache_file)
+                    self.dataset_cache = torch.load(cache_file)
 
             del self.dataset
 
@@ -70,8 +62,12 @@ class CustomImageDataset(Dataset):
 
         cat_mask = np.where(mask == 38, 1,0)
         dog_mask = np.where(mask == 75, 2,0)
+        uncertianty_mask = np.where(mask == 255,1,0)
 
-        mask = cat_mask + dog_mask
+        if cat_mask.sum() > 0:
+            mask = cat_mask + uncertianty_mask
+        else:
+            mask = dog_mask + 2*uncertianty_mask
 
         return image, torch.tensor(mask)
     
