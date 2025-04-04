@@ -10,17 +10,20 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
 import os
 
-def setup_ddp(rank, world_size):
+def setup_ddp():
+    import subprocess
+
     rank = int(os.environ["SLURM_PROCID"])
     world_size = int(os.environ["SLURM_NTASKS"])
     local_rank = int(os.environ["SLURM_LOCALID"])
 
-    os.environ["MASTER_ADDR"] = os.environ["SLURM_NODELIST"]
-    os.environ["MASTER_PORT"] = "12355"  # Any open port works
+    hostnames = subprocess.getoutput("scontrol show hostnames $SLURM_NODELIST").split()
+    os.environ["MASTER_ADDR"] = hostnames[0]
+    os.environ["MASTER_PORT"] = "12355"
 
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
     torch.cuda.set_device(local_rank)
-    
+
     return rank, world_size, local_rank
 
 def cleanup_ddp():
@@ -34,7 +37,7 @@ def main_ddp():
     augmentations_per_datapoint = 4
     num_workers = 0
 
-    model = UNet.to(rank)
+    model = UNet().to(rank)
     ddp_model = DDP(model, device_ids=[rank])
 
     data_augmentor = DataAugmentor(augmentations_per_datapoint)
@@ -51,6 +54,7 @@ def main_ddp():
     trainer = DistributedTrainingWrapper(rank, ddp_model, train_dataloader, val_dataloader, num_workers=num_workers, batch_size=batch_size, augmentor=data_augmentor)
     trainer.train(2)
 
+    torch.distributed.barrier()
     cleanup_ddp()
 
 if __name__ == "__main__":
