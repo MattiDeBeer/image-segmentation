@@ -36,7 +36,7 @@ class TrainingWrapper:
             os.environ["OMP_NUM_THREADS"] = str(num_workers)
             os.environ["MKL_NUM_THREADS"] = str(num_workers)
 
-        mp.set_start_method('spawn', force=True)
+        mp.set_start_method('fork', force=True)
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
