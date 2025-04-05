@@ -8,12 +8,12 @@ if __name__ == '__main__':
         model_class= ClipAutoencoder,
         model_arguments={'out_channels' : 3},
         model_compilation_args = {'mode' : 'max-autotune'},
-        num_workers = 12,
-        batch_size = 10,
+        num_workers = 0,
+        batch_size = 150,
         train_dataset_class = CustomImageDataset,
-        train_dataset_args = {'split' : 'test', 'augmentations_per_datapoint' : 4},
+        train_dataset_args = {'split' : 'test', 'augmentations_per_datapoint' : 4, 'cache' : True},
         validation_dataset_class= CustomImageDataset,
-        validation_dataset_args = {'split' : 'validation'},
+        validation_dataset_args = {'split' : 'validation' , 'cache' : True},
     )
 
     Trainer.train(200)
