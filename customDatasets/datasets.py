@@ -39,14 +39,16 @@ class CustomImageDataset(Dataset):
         if self.cache:
             cache_file = os.path.join(dataset_loc, f"{split}_dataset.pt")
             if os.path.exists(cache_file):
+                print(f"Loading dataset cache from {cache_file}")
                 self.dataset_cache = torch.load(cache_file, weights_only=True)
             else:
                 print(f"Cache not found. Creating and saving dataset cache at {cache_file}")
                 self.dataset_cache = []
                 for datapoint in tqdm(self.dataset, desc=f"Caching {split} dataset:", leave=False, total=len(self.dataset)):
                     self.dataset_cache.append(self._deserialize_datapoint(datapoint))
-                    torch.save(self.dataset_cache, cache_file)
-                    self.dataset_cache = torch.load(cache_file)
+
+                torch.save(self.dataset_cache, cache_file)
+                self.dataset_cache = torch.load(cache_file, weights_only=True)
 
             del self.dataset
 
