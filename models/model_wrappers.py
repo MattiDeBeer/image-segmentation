@@ -239,6 +239,8 @@ class DistributedTrainingWrapper:
             disable = True
 
         for epoch in tqdm( range(num_epochs), desc='Training', unit = 'Epoch', leave = False, disable=disable ):
+
+            self.train_dataloader.sampler.set_epoch(epoch)
             
             self.model.train()
             running_loss = 0.0
