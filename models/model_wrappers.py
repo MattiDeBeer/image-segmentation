@@ -160,6 +160,8 @@ class TrainingWrapper:
             avg_iou_loss = running_iou_loss / len(self.validation_dataloader)
             avg_pixel_acc_loss = running_pixel_acc_loss / len(self.validation_dataloader)
             avg_dice_loss = running_dice_loss / len(self.validation_dataloader)
+
+            
             
             tqdm.write(f"Epoch: {epoch}")
             tqdm.write(f"Rate: {rate:.1f} datapoints/s")
@@ -169,6 +171,15 @@ class TrainingWrapper:
             tqdm.write(f"Val Pixel Accuracy: {avg_pixel_acc_loss:.4f}")
             tqdm.write(f"Val Dice: {avg_dice_loss:.4f}")
             tqdm.write('\n')
+
+            if torch.cuda.is_available():
+                device = torch.cuda.current_device()
+                tqdm.write(f"Current device: {torch.cuda.get_device_name(device)}")
+                tqdm.write(f"Device index: {device}")
+                tqdm.write(f"Current GPU memory usage: {torch.cuda.memory_allocated(device) / 1e9} GB")
+                tqdm.write(f"Max GPU memory usage: {torch.cuda.max_memory_allocated(device) / 1e9} GB")
+                tqdm.write(f"Total GPU memory: {torch.cuda.get_device_properties(device).total_memory / 1e9} GB")
+                tqdm.write('\n')
 
             log_loss_to_csv(epoch,avg_train_loss,avg_val_loss, avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss, self.save_location)
             
