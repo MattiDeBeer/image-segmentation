@@ -131,4 +131,6 @@ for epoch in tqdm(range(num_epochs), desc='Training', unit='Epoch'):
     print(f"Epoch [{epoch+1}/{num_epochs}] - Train Loss: {avg_train_loss:.4f} - Val Loss: {avg_val_loss:.4f} - Time: {epoch_time:.2f}s")
     print(f"Val IoU: {avg_iou_loss:.4f} - Val Pixel Acc: {avg_pixel_acc_loss:.4f} - Val Dice: {avg_dice_loss:.4f}")
     log_loss_to_csv(epoch, avg_train_loss, avg_val_loss, avg_pixel_acc_loss, avg_dice_loss, avg_iou_loss, save_location)
-    torch.save(model.state_dict(), f"{save_location}/model_epoch{epoch+1}.pth")
+    # Save model weights every 5 epochs to save sapce
+    if (epoch + 1) % 5 == 0:
+        torch.save(model.state_dict(), f"{save_location}/model_epoch{epoch+1}.pth")
