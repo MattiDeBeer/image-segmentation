@@ -226,36 +226,35 @@ class DataAugmentorPrompt(nn.Module):
         )
 
     def transform_batch(self, images, masks, prompts):
-        # images: [B, 3, H, W]
-        # masks: [B, 3, H, W]  (segmentation labels with 3 channels)
-        # prompts: [B, 1, H, W]
-        # Concatenate them along the channel dimension:
-        concatenated_batch = torch.cat([images, masks.float(), prompts.float()], dim=1)  
-        # This creates a tensor of shape [B, 3+3+1 = 7, H, W]
 
+        if masks.dim() == 3:
+            masks = masks.unsqueeze(1)
+    
+        concatenated_batch = torch.cat([images, masks.float(), prompts.float()], dim=1)  
         concatenated_batch = self.geometric_transforms(concatenated_batch)
 
         # Split them back:
         images_aug = concatenated_batch[:, :3, :, :]
-        masks_aug = concatenated_batch[:, 3:6, :, :]
-        prompts_aug = concatenated_batch[:, 6:7, :, :]
+        masks_aug = concatenated_batch[:, 3:4, :, :]   
+        prompts_aug = concatenated_batch[:, 4:5, :, :]   
 
-        # Apply colour transforms only to the image
+        # Apply colour transforms only to the images:
         images_aug = self.colour_transforms(images_aug)
 
         return images_aug, masks_aug.long(), prompts_aug
 
     def forward(self, images, masks, prompts):
+        # Save original unaugmented items based on augmentations_per_datapoint
         saved_images  = images[::self.augmentations_per_datapoint + 1]
         saved_masks   = masks[::self.augmentations_per_datapoint + 1]
         saved_prompts = prompts[::self.augmentations_per_datapoint + 1]
 
         transformed_images, transformed_masks, transformed_prompts = self.transform_batch(images, masks, prompts)
 
-        # Reinsert the saved (non-augmented) items
+        # Reinsert the saved (non-augmented) items:
         transformed_images[::self.augmentations_per_datapoint + 1]  = saved_images
-        transformed_masks[::self.augmentations_per_datapoint + 1]   = saved_masks
+        transformed_masks[::self.augmentations_per_datapoint + 1]   = saved_masks.unsqueeze(1)  # ensure channel dimension
         transformed_prompts[::self.augmentations_per_datapoint + 1] = saved_prompts
 
-        return transformed_images, transformed_masks, transformed_prompts
-
+        # If your downstream expects masks to be [B, H, W], squeeze the channel dimension:
+        return transformed_images, transformed_masks.squeeze(1), transformed_prompts
