@@ -305,11 +305,11 @@ class PromptImageDataset(Dataset):
         # 3) Generate the prompt map
         prompt_map = self._create_prompt_map(chosen_class, cat_mask, dog_mask, background_mask)
 
-        # 4) Build the segmentation label (3 channels: cat, dog, background)
-        cat_tensor = cat_mask.unsqueeze(0)  # [1, H, W]
-        dog_tensor = dog_mask.unsqueeze(0)  # [1, H, W]
-        bg_tensor  = background_mask.unsqueeze(0)
-        label = torch.cat([cat_tensor, dog_tensor, bg_tensor], dim=0)  # [3, H, W]
+         # 4) Build the segmentation label as a single-channel tensor with class indices.
+        # Assign: 0 for cat, 1 for dog, and 2 for background.
+        label = torch.full_like(cat_mask, fill_value=2, dtype=torch.long)
+        label[cat_mask == 1] = 0
+        label[dog_mask == 1] = 1
 
         return image, prompt_map, label
 
