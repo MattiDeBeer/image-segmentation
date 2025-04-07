@@ -210,3 +210,52 @@ class DataAugmentor(nn.Module):
         transformed_masks[::self.augmentations_per_datapoint+1] = saved_masks
 
         return transformed_images, transformed_masks
+class DataAugmentorPrompt(nn.Module):
+    def __init__(self, augmentations_per_datapoint):
+        super().__init__()
+        self.augmentations_per_datapoint = augmentations_per_datapoint
+
+        self.geometric_transforms = torch.nn.Sequential(
+            K.RandomHorizontalFlip(),
+            K.RandomRotation(90, resample='nearest', same_on_batch=False),
+        )
+
+        self.colour_transforms = torch.nn.Sequential(
+            K.ColorJitter(brightness=0.4, contrast=0.3, saturation=0.2, hue=0.2, same_on_batch=False),
+            K.RandomGaussianBlur(kernel_size=(5, 5), sigma=(0.1, 2.0), p=1.0, same_on_batch=False)
+        )
+
+    def transform_batch(self, images, masks, prompts):
+        # images: [B, 3, H, W]
+        # masks: [B, 3, H, W]  (segmentation labels with 3 channels)
+        # prompts: [B, 1, H, W]
+        # Concatenate them along the channel dimension:
+        concatenated_batch = torch.cat([images, masks.float(), prompts.float()], dim=1)  
+        # This creates a tensor of shape [B, 3+3+1 = 7, H, W]
+
+        concatenated_batch = self.geometric_transforms(concatenated_batch)
+
+        # Split them back:
+        images_aug = concatenated_batch[:, :3, :, :]
+        masks_aug = concatenated_batch[:, 3:6, :, :]
+        prompts_aug = concatenated_batch[:, 6:7, :, :]
+
+        # Apply colour transforms only to the image
+        images_aug = self.colour_transforms(images_aug)
+
+        return images_aug, masks_aug.long(), prompts_aug
+
+    def forward(self, images, masks, prompts):
+        saved_images  = images[::self.augmentations_per_datapoint + 1]
+        saved_masks   = masks[::self.augmentations_per_datapoint + 1]
+        saved_prompts = prompts[::self.augmentations_per_datapoint + 1]
+
+        transformed_images, transformed_masks, transformed_prompts = self.transform_batch(images, masks, prompts)
+
+        # Reinsert the saved (non-augmented) items
+        transformed_images[::self.augmentations_per_datapoint + 1]  = saved_images
+        transformed_masks[::self.augmentations_per_datapoint + 1]   = saved_masks
+        transformed_prompts[::self.augmentations_per_datapoint + 1] = saved_prompts
+
+        return transformed_images, transformed_masks, transformed_prompts
+
