@@ -18,20 +18,18 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 import time
 from tqdm import tqdm
-
+from models.losses import HybridLoss, IoULoss, PixelAccuracyLoss, DiceLoss
 # Import your dataset class
 from customDatasets.datasets import PromptImageDataset
 
-# Import your model components:
-from models.autoencoder import Autoencoder      
-from models.prompt_encoder import PromptEncoder, SegmentationModelWithPrompt    
-from models.pre_trained import SegmentationDecoderSkip
-num_epochs = 50
+# Import your model components:    
+from models.prompt_segmentation import ClipUnetPrompt
+num_epochs = 200
 batch_size = 16
 learning_rate = 0.001
 weight_decay = 1e-4
-num_classes = 3         # e.g., [cat, dog, background] 
-gaussian_sigma = 10.0     # Gaussian sigma for prompt heatmap (or None for binary)
+num_classes = 3         
+gaussian_sigma = 10.0     
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -49,51 +47,12 @@ val_dataset = PromptImageDataset(
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
 val_loader   = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
 
-autoencoder = Autoencoder(in_channels=3, out_channels=3)
-ckpt = torch.load("saved-models/pre_trained_autoencoder_model/model_32.pth")
-new_ckpt = {}
-
-for key, val in ckpt.items():
-    # If the key starts with "_orig_mod.", remove that prefix
-    if key.startswith("_orig_mod."):
-        new_key = key.replace("_orig_mod.", "")
-    else:
-        new_key = key
-
-    new_ckpt[new_key] = val
-
-autoencoder.load_state_dict(new_ckpt)
-# Freeze image encoder
-for param in autoencoder.encoder.parameters():
-    param.requires_grad = False
-
-
-prompt_encoder = PromptEncoder(out_channels=512)  # For example, output shape: [B, 512, H/8, W/8]
-
-# Instantiate segmentation decoder (using skip connections variant)
-decoder = SegmentationDecoderSkip(out_channels=num_classes)
-
-
-
-model = SegmentationModelWithPrompt(
-    image_encoder=autoencoder.encoder,
-    prompt_encoder=prompt_encoder,
-    decoder=decoder,
-    fusion_method='concat'  # Could also use 'add' if dimensions align
-)
-
+model = ClipUnetPrompt()
 model.to(device)
 
-# ===== Optimizer and Loss =====
-# Only optimize prompt_encoder and decoder parameters; image encoder is frozen.
-optimizer = optim.Adam(
-    list(model.prompt_encoder.parameters()) + list(model.decoder.parameters()),
-    lr=learning_rate,
-    weight_decay=weight_decay
-)
-# Assume labels are provided as class indices (shape [B, H, W]); use CrossEntropyLoss.
-criterion = nn.CrossEntropyLoss()
 
+optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+criterion = HybridLoss()
 # Optionally, set up any logging, CSV writers, etc.
 from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header, log_loss_to_csv
 save_location = get_next_run_folder("/tmp/saved-models/prompt_segmentation")
@@ -102,19 +61,18 @@ num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 save_training_info(model, optimizer, criterion, train_loader, val_loader, save_location, extra_params={'num_params': num_params})
 write_csv_header(save_location)
 
-# ===== Training Loop =====
 for epoch in tqdm(range(num_epochs), desc='Training', unit='Epoch'):
     model.train()
     running_loss = 0.0
     start_time = time.time()
 
     for images, prompts, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs} Training", leave=False):
-        images = images.to(device, non_blocking=True)    # [B, 3, 256, 256]
-        prompts = prompts.to(device, non_blocking=True)  # [B, 1, 256, 256]
-        labels = labels.to(device, non_blocking=True)    # if labels are [B, H, W] with class indices
+        images = images.to(device, non_blocking=True)    
+        prompts = prompts.to(device, non_blocking=True)  
+        labels = labels.to(device, non_blocking=True)    
         
         optimizer.zero_grad()
-        outputs = model(images, prompts)  # Expected output: [B, num_classes, 256, 256]
+        outputs = model(images, prompts)  
         loss = criterion(outputs, labels.long())
         loss.backward()
         optimizer.step()
