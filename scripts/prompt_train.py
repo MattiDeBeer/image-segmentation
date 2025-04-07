@@ -18,7 +18,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 import time
 from tqdm import tqdm
-from models.losses import HybridLoss, IoULoss, PixelAccuracyLoss, DiceLoss
+from models.losses import HybridLoss
 # Import your dataset class
 from customDatasets.datasets import PromptImageDataset
 
