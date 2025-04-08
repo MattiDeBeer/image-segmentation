@@ -305,7 +305,7 @@ class TestWrapper:
 
             return avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss
         
-    def log_results_to_csv(results, filename):
+    def log_results_to_csv(results, filename=None):
         """
         Logs the results of the augmentation tests into a CSV file.
         
