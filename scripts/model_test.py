@@ -12,4 +12,4 @@ tester = TestWrapper(
     test_dataset_args = {'split':'test','augmentations_per_datapoint' : 0, 'cache' : False},
 )
 
-tester.test()
+tester.test_robustness()
