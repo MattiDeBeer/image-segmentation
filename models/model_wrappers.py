@@ -279,7 +279,7 @@ class TestWrapper:
                     inputs, targets = inputs.to(self.device, non_blocking=True), targets.to(self.device, non_blocking=True)
 
                     # Apply the augmentation
-                    inputs, targets = augmentation(inputs)
+                    inputs = augmentation(inputs)
                     
                     # Forward pass
                     outputs = self.model(inputs)
