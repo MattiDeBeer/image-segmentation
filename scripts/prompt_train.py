@@ -88,6 +88,7 @@ for epoch in tqdm(range(num_epochs), desc='Training', unit='Epoch'):
         images = images.to(device, non_blocking=True)        # [B, 3, H, W]
         prompt_maps = prompt_maps.to(device, non_blocking=True)  # [B, 1, H, W]
         labels = labels.to(device, non_blocking=True)          # [B, 3, H, W]
+        print("Label mean:", labels.mean().item())
         
         # Apply joint data augmentation: augment images, labels, and prompt maps
         images, labels, prompt_maps = data_augmentor(images, labels, prompt_maps)
