@@ -451,7 +451,7 @@ class TestWrapper:
         self.test_gaussian_pixel_noise([1e-6, 2, 4, 6, 8, 10, 12, 14, 16, 18])
 
         # b) Gaussian blurring
-        self.test_repeated_blur([1e-6, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        self.test_repeated_blur([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
         # c) Image Contrast Increase
         self.test_contrast_change([1.0, 1.01, 1.02, 1.03, 1.04, 1.05, 1.1, 1.15, 1.20, 1.25], True)
