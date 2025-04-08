@@ -64,7 +64,7 @@ class IoU(nn.Module):
 
 class IoUBinary(nn.Module):
     def __init__(self, eps=1e-6, threshold=0.5):
-        super(IoU, self).__init__()
+        super(IoUBinary, self).__init__()
         self.eps = eps
         self.threshold = threshold
 
@@ -101,7 +101,7 @@ class Dice(nn.Module):
 
 class DiceBinary(nn.Module):
     def __init__(self, eps=1e-6, threshold=0.5):
-        super(Dice, self).__init__()
+        super(DiceBinary, self).__init__()
         self.eps = eps
         self.threshold = threshold
         # Initialize the Dice loss in binary mode.
@@ -155,7 +155,7 @@ class PixelAccuracy(nn.Module):
 
 class PixelAccuracyBinary(nn.Module):
     def __init__(self, threshold=0.5):
-        super(PixelAccuracy, self).__init__()
+        super(PixelAccuracyBinary, self).__init__()
         self.threshold = threshold
 
     def forward(self, preds, targets):
