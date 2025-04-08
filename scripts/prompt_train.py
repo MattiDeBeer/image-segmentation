@@ -68,7 +68,8 @@ for i in range(2):  # Show two examples
     plt.title("Label")
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig(f"/tmp/sample_{i}.png")
+    plt.close()
 
 # Initialize the model and move it to device
 model = ClipUnetPrompt()
