@@ -11,6 +11,7 @@ from models.losses import HybridLoss, IoU, PixelAccuracy, Dice
 import torch.multiprocessing as mp
 import os
 import time
+from collections import OrderedDict
 
 class TrainingWrapper:
 
@@ -30,6 +31,7 @@ class TrainingWrapper:
                  optimizer_args = {'lr': 0.001, 'weight_decay' : 1e-4},
                  data_augmentor_class = DataAugmentor,
                  ):
+        
     
 
         if num_workers > 0:
@@ -77,8 +79,6 @@ class TrainingWrapper:
                         self.validation_dataloader,
                         self.save_location, 
                         extra_params = {'num_params' : num_params})
-
-
 
     def train(self, num_epochs):
 
@@ -186,6 +186,76 @@ class TrainingWrapper:
             # Save current model
             torch.save(self.model.state_dict(), f'{self.save_location}model_{epoch+1}.pth')
 
+class TestWrapper:
+
+    def __init__(self,
+                 model,
+                 test_dataset_class = CustomImageDataset,
+                 test_dataset_args = {'split':'test','augmentations_per_datapoint' : 0, 'cache' : False},
+                 batch_size = 10,
+                 model_load_location = None,
+                 ):
+        
+        assert model_load_location is not None, "Model load location must be specified"
+
+        self.test_dataloader = DataLoader(test_dataset_class(**test_dataset_args),batch_size = batch_size, shuffle=False, pin_memory=True)
+
+        # Load state_dict
+        state_dict = torch.load(model_load_location, map_location="cpu", weights_only=True)
+
+        # Remove "_orig_mod." prefix
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            new_key = k.replace("_orig_mod.", "")  # Remove prefix
+            new_state_dict[new_key] = v
+
+        # Load into model
+        model.load_state_dict(new_state_dict)
+
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+        self.model = model.to(self.device)  # Then move to GPU
+
+    
+    def test(self):
+            
+        iou = IoU()
+        dice = Dice()
+        pixel_acc = PixelAccuracy()
+
+
+       # Validation loop
+        self.model.eval()  # Set the model to evaluation mode
+        running_val_loss = 0.0
+        running_iou_loss = 0.0
+        running_pixel_acc_loss = 0.0
+        running_dice_loss = 0.0
+    
+        with torch.no_grad():  # No gradients needed during validation
+            for inputs, targets in tqdm(self.test_dataloader, desc=f"Evaluating model test performance",leave=False):
+                inputs, targets = inputs.to(self.device, non_blocking=True), targets.to(self.device, non_blocking=True)
+
+                
+                # Forward pass
+                outputs = self.model(inputs)
+                
+                iou_loss = iou(outputs, targets)
+                pixel_acc_loss = pixel_acc(outputs, targets)
+                dice_loss = 2 * iou(outputs, targets) / (1 + iou(outputs, targets))
+                
+                running_iou_loss += iou_loss.item()
+                running_pixel_acc_loss += pixel_acc_loss.item()
+                running_dice_loss += dice_loss.item()
+        
+        # Calculate average validation losses
+        avg_iou_loss = running_iou_loss / len(self.test_dataloader)
+        avg_pixel_acc_loss = running_pixel_acc_loss / len(self.test_dataloader)
+        avg_dice_loss = running_dice_loss / len(self.test_dataloader)
+
+        tqdm.write(f"IoU: {avg_iou_loss:.4f}")
+        tqdm.write(f"Pixel Accuracy: {avg_pixel_acc_loss:.4f}")
+        tqdm.write(f"Dice: {avg_dice_loss:.4f}")
+        tqdm.write('\n')
 
 class DistributedTrainingWrapper:
 
