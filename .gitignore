@@ -179,6 +179,7 @@ cython_debug/
 
 #models
 saved-models/
+results/
 
 #testing script
 test_script.py
