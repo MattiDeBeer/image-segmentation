@@ -39,17 +39,17 @@ class UNet(nn.Module):
         self.input = nn.Conv2d(in_channels, 32, kernel_size=1, padding=0)
        
         # Encoder
-        self.enc1 = ConvBlockDownsample(32, 64)   # /2
-        self.enc2 = ConvBlockDownsample(64, 128)           # /4
-        self.enc3 = ConvBlockDownsample(128, 256)         # /8
+        self.enc1 = ConvBlockDownsample(32, 64)
+        self.enc2 = ConvBlockDownsample(64, 128)
+        self.enc3 = ConvBlockDownsample(128, 256)
         
         # Bottleneck
-        self.bottleneck = ConvBlock(256, 512)             # /8
+        self.bottleneck = ConvBlock(256, 512)
         
-    
-        self.dec1 = ConvBlockUpsampleSkip(512, 256)            # /4
-        self.dec2 = ConvBlockUpsampleSkip(256, 128)            # /2
-        self.dec3 = ConvBlockUpsampleSkip(128, 64)             # /1
+        #decoder
+        self.dec1 = ConvBlockUpsampleSkip(512, 256)
+        self.dec2 = ConvBlockUpsampleSkip(256, 128)
+        self.dec3 = ConvBlockUpsampleSkip(128, 64)
         self.dec4 = ConvBlockUpsampleSkip(64, 32) 
 
         self.out = nn.Conv2d(32, out_channels, kernel_size=1, padding=0)
