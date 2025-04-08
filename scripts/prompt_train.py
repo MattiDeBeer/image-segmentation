@@ -112,7 +112,7 @@ for epoch in tqdm(range(num_epochs), desc='Training', unit='Epoch'):
             labels = labels.to(device)
             
             outputs = model(images, prompt_maps)
-            hybrid_loss = criterion(outputs, labels.long())
+            hybrid_loss = criterion(outputs, labels)
             iou_loss = iou_metric(outputs, labels)
             pixel_acc_loss = pixel_acc_metric(outputs, labels)
             # Compute dice loss as a function of IoU: for example, dice = 2*IoU/(1+IoU)
