@@ -55,7 +55,7 @@ model.to(device)
 
 # Initialize optimizer and loss function
 optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-criterion = HybridLossBinary()
+criterion =  nn.BCEWithLogitsLoss()
 
 # Initialize metrics
 iou_metric = IoUBinary()

@@ -15,7 +15,7 @@ import torchvision.transforms as transforms
 import random
 import kornia.augmentation as K
 import kornia.filters as KF
-import kornia as K
+
 
 
 class ConvBlock(nn.Module):
@@ -245,7 +245,7 @@ class DataAugmentorPrompt(nn.Module):
         # Apply colour transforms only to the images:
         images_aug = self.colour_transforms(images_aug)
 
-        return images_aug, masks_aug.long(), prompts_aug
+        return images_aug, masks_aug, prompts_aug
 
     def forward(self, images, masks, prompts):
         # Save original unaugmented items based on augmentations_per_datapoint
@@ -257,11 +257,11 @@ class DataAugmentorPrompt(nn.Module):
 
         # Reinsert the saved (non-augmented) items:
         transformed_images[::self.augmentations_per_datapoint + 1]  = saved_images
-        transformed_masks[::self.augmentations_per_datapoint + 1]   = saved_masks.unsqueeze(1)  # ensure channel dimension
+        transformed_masks[::self.augmentations_per_datapoint + 1]   = saved_masks
         transformed_prompts[::self.augmentations_per_datapoint + 1] = saved_prompts
 
         # If your downstream expects masks to be [B, H, W], squeeze the channel dimension:
-        return transformed_images, transformed_masks.squeeze(1), transformed_prompts
+        return transformed_images, transformed_masks, transformed_prompts
 
 
 class GaussianPixelNoise(nn.Module):
