@@ -442,8 +442,7 @@ class TestWrapper:
             results.append(('Salt and Pepper', amount, avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss))
         
         # Log the results to a CSV
-        self.log_results_to_csv(results)
-
+        self.log_results_to_csv(results, filename='salt_and_pepper_results.csv')
 
     def test_robustness(self):
 
