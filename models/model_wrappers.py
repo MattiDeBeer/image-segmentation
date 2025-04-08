@@ -438,7 +438,31 @@ class TestWrapper:
 
 
     def test_robustness(self):
-        self.test_gaussian_pixel_noise([0.01, 0.05, 0.1])
+
+        # a) Gaussian pixel noise
+        self.test_gaussian_pixel_noise([0, 2, 4, 6, 8, 10, 12, 14, 16, 18])
+
+        # b) Gaussian blurring
+        self.test_gaussian_blurring([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+        # c) Image Contrast Increase
+        self.test_contrast_increase([1.0, 1.01, 1.02, 1.03, 1.04, 1.05, 1.1, 1.15, 1.20, 1.25])
+
+        # d) Image Contrast Decrease
+        self.test_contrast_decrease([1.0, 0.95, 0.90, 0.85, 0.80, 0.60, 0.40, 0.30, 0.20, 0.10])
+
+        # e) Image Brightness Increase
+        self.test_brightness_increase([0, 5, 10, 15, 20, 25, 30, 35, 40, 45])
+
+        # f) Image Brightness Decrease
+        self.test_brightness_decrease([0, 5, 10, 15, 20, 25, 30, 35, 40, 45])
+
+        # g) Occlusion of the Image Increase
+        self.test_occlusion_increase([0, 5, 10, 15, 20, 25, 30, 35, 40, 45])
+
+        # h) Salt and Pepper Noise
+        self.test_salt_and_pepper_noise([0.00, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16])
+
 
 class DistributedTrainingWrapper:
 
