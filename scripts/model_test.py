@@ -8,7 +8,7 @@ tester = TestWrapper(
     test_dataset_class=CustomImageDataset,
     batch_size=16,
     model_load_location="results/models/LargeUNet/best_model.pth",
-
+    test_dataset_args = {'split':'test','augmentations_per_datapoint' : 0, 'cache' : False},
 )
 
 tester.test()
