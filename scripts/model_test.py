@@ -1,6 +1,7 @@
 
 from models.model_wrappers import TestWrapper
 from models.UNet import UNet, LargeUNet
+from models.CLIP_models import ClipUnet, ClipResSegmentationModel, ClipAutoencoder
 from customDatasets.datasets import CustomImageDataset
 
 tester = TestWrapper(
