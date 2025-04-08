@@ -18,10 +18,9 @@ from customDatasets.perturbations import (
     GaussianPixelNoise, GaussianBlur, ContrastIncrease, ContrastDecrease,
      BrightnessIncrease, BrightnessDecrease, OcclusionIncrease, SaltPepperNoise)
 #import dice loss
-from models.losses import DiceLoss  
+from models.losses import Dice
 #import model
-from models.autoencoder import Autoencoder
-from models.pre_trained import SegmentationDecoderSkip, SegmentationModel
+from models.CLIP_models import ClipUnet
 from tqdm import tqdm
 
 
@@ -34,14 +33,10 @@ def main():
     np.random.seed(42)
     torch.manual_seed(42)
     # 1) Recreate the architecture
-    autoencoder = Autoencoder(in_channels=3, out_channels=3)
+    model = ClipUnet()
+ 
     
-
-    decoder = SegmentationDecoderSkip(out_channels=3)
-    
-    model = SegmentationModel(encoder=autoencoder.encoder, decoder=decoder)
-    
-    ckpt = torch.load("saved-models/pre_trained_autoencoder/model_32.pth", map_location=device)
+    ckpt = torch.load("saved-models/ClipUnet/model.pth", map_location=device)
     
     new_ckpt = {}
     for key, val in ckpt.items():
@@ -52,7 +47,7 @@ def main():
     
     model.to(device)
     model.eval()
-    dice_fn = DiceLoss()
+    dice_fn = Dice()
 
 
 
