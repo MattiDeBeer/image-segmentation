@@ -295,7 +295,13 @@ class TestWrapper:
             # Calculate average validation losses
             avg_iou_loss = running_iou_loss / len(self.test_dataloader)
             avg_pixel_acc_loss = running_pixel_acc_loss / len(self.test_dataloader)
-            avg_dice_loss = dice_loss / len(self.test_dataloader)
+            avg_dice_loss = running_dice_loss / len(self.test_dataloader)
+
+            tqdm.write(f"Augmentation: {augmentation.__class__.__name__}, Parameter Value: {param_val}")
+            tqdm.write(f"IoU: {avg_iou_loss:.4f}")
+            tqdm.write(f"Pixel Accuracy: {avg_pixel_acc_loss:.4f}")
+            tqdm.write(f"Dice: {avg_dice_loss:.4f}")
+            tqdm.write('\n')
 
             return avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss
         
