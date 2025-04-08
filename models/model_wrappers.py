@@ -305,7 +305,7 @@ class TestWrapper:
 
             return avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss
         
-    def log_results_to_csv(results, filename=None):
+    def log_results_to_csv(results, filename):
         """
         Logs the results of the augmentation tests into a CSV file.
         
@@ -349,7 +349,7 @@ class TestWrapper:
             results.append(('Gaussian Pixel Noise', std, avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss))
         
         # Log the results to a CSV
-        self.log_results_to_csv(results, filename='gaussian_pixel_noise_results.csv')
+        self.log_results_to_csv(results, 'gaussian_pixel_noise_results.csv')
 
 
     def test_repeated_blur(self, parameter_values):
