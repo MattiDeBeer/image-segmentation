@@ -314,6 +314,8 @@ class PromptImageDataset(Dataset):
             label[dog_mask == 1] = 1.0
         else:
             label[background_mask == 1] = 1.0
+        label = label.unsqueeze(0)
+    
 
         return image, prompt_map, label
 
