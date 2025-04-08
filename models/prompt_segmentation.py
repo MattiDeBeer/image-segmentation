@@ -31,7 +31,7 @@ class PromptEncoder(nn.Module):
 
 class ClipUnetPrompt(nn.Module):
 
-    def __init__(self, out_channels=3, in_channels=3, activation=nn.Identity()):
+    def __init__(self, out_channels=1, in_channels=3, activation=nn.Identity()):
         super().__init__()
 
         self.clip_feature_extractor = ClipFeatureExtractor(train=False)
@@ -59,7 +59,7 @@ class ClipUnetPrompt(nn.Module):
         self.dec3 = ConvBlockUpsampleSkip(128, 64)  # /1
         self.dec4 = ConvBlockUpsampleSkip(64, 32) 
 
-        self.out = nn.Conv2d(32, out_channels, kernel_size=1, padding=0)
+        self.out = nn.Conv2d(32, out_channels, kernel_size=1)
         self.activation = activation
 
     def forward(self, X, prompt_heatmap):

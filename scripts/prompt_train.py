@@ -13,7 +13,7 @@ import time
 from tqdm import tqdm
 
 # Loss and metric functions
-from models.losses import HybridLoss, IoU, PixelAccuracy, Dice
+from models.losses import HybridLossBinary, IoUBinary, PixelAccuracyBinary, DiceBinary
 # Dataset class
 from customDatasets.datasets import PromptImageDataset
 # Model component (implements prompt fusion)
@@ -55,11 +55,11 @@ model.to(device)
 
 # Initialize optimizer and loss function
 optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-criterion = HybridLoss()
+criterion = HybridLossBinary()
 
 # Initialize metrics
-iou_metric = IoU()
-pixel_acc_metric = PixelAccuracy()
+iou_metric = IoUBinary()
+pixel_acc_metric = PixelAccuracyBinary()
 # For dice, we'll compute it from the IoU value, e.g., dice = 2 * IoU / (1 + IoU)
 
 # Set up logging and checkpoint folder
