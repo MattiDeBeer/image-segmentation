@@ -14,7 +14,7 @@ from models.pre_trained import SegmentationDecoderSkip
     
 
 class PromptEncoder(nn.Module):
-    def __init__(self, out_channels=64):
+    def __init__(self, out_channels=256):
         super().__init__()
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 16, kernel_size=3, padding=1),
