@@ -369,7 +369,7 @@ class TestWrapper:
         self.log_results_to_csv(results, filename='repeated_blur_results.csv')
 
 
-    def test_contrast_change(self, parameter_values):
+    def test_contrast_change(self, parameter_values, increase=True):
         """
         Tests Contrast Change augmentation with different parameter values.
         
@@ -382,11 +382,15 @@ class TestWrapper:
             avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss = self.test_augmentation(augmentation, factor)
             results.append(('Contrast Change', factor, avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss))
         
-        # Log the results to a CSV
-        self.log_results_to_csv(results, filename='contrast_change_results.csv')
+        if increase:
+            # Log the results to a CSV
+            self.log_results_to_csv(results, filename='contrast_increase_results.csv')
+        else:
+            # Log the results to a CSV
+            self.log_results_to_csv(results, filename='contrast_decrease_results.csv')
 
 
-    def test_brightness_change(self, parameter_values):
+    def test_brightness_change(self, parameter_values, increase=True):
         """
         Tests Brightness Change augmentation with different parameter values.
         
@@ -400,7 +404,11 @@ class TestWrapper:
             results.append(('Brightness Change', offset, avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss))
         
         # Log the results to a CSV
-        self.log_results_to_csv(results,filename='brightness_change_results.csv')
+        if increase:
+            self.log_results_to_csv(results, filename='brightness_increase_results.csv')
+        else:
+            # Log the results to a CSV
+            self.log_results_to_csv(results, filename='brightness_decrease_results.csv')
 
 
     def test_occlusion(self, parameter_values):
@@ -443,25 +451,25 @@ class TestWrapper:
         self.test_gaussian_pixel_noise([1e-6, 2, 4, 6, 8, 10, 12, 14, 16, 18])
 
         # b) Gaussian blurring
-        self.test_gaussian_blurring([1e-6, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        self.test_repeated_blur([1e-6, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
         # c) Image Contrast Increase
-        self.test_contrast_increase([1.0, 1.01, 1.02, 1.03, 1.04, 1.05, 1.1, 1.15, 1.20, 1.25])
+        self.test_contrast_change([1.0, 1.01, 1.02, 1.03, 1.04, 1.05, 1.1, 1.15, 1.20, 1.25], True)
 
         # d) Image Contrast Decrease
-        self.test_contrast_decrease([1.0, 0.95, 0.90, 0.85, 0.80, 0.60, 0.40, 0.30, 0.20, 0.10])
+        self.test_contrast_change([1.0, 0.95, 0.90, 0.85, 0.80, 0.60, 0.40, 0.30, 0.20, 0.10], False)
 
         # e) Image Brightness Increase
-        self.test_brightness_increase([0, 5, 10, 15, 20, 25, 30, 35, 40, 45])
+        self.test_brightness_change([0, 5, 10, 15, 20, 25, 30, 35, 40, 45], True)
 
         # f) Image Brightness Decrease
-        self.test_brightness_decrease([0, 5, 10, 15, 20, 25, 30, 35, 40, 45])
+        self.test_brightness_change([0, -5, -10, -15, -20, -25, -30, -35, -40, -45], True)
 
         # g) Occlusion of the Image Increase
-        self.test_occlusion_increase([0, 5, 10, 15, 20, 25, 30, 35, 40, 45])
+        self.test_occlusion([0, 5, 10, 15, 20, 25, 30, 35, 40, 45])
 
         # h) Salt and Pepper Noise
-        self.test_salt_and_pepper_noise([0.00, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16])
+        self.test_salt_and_pepper([0.00, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16])
 
 
 class DistributedTrainingWrapper:
