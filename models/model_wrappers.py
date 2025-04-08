@@ -305,7 +305,7 @@ class TestWrapper:
 
             return avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss
         
-    def log_results_to_csv(results, filename='augmentation_results.csv'):
+    def log_results_to_csv(results, filename):
         """
         Logs the results of the augmentation tests into a CSV file.
         
@@ -313,6 +313,7 @@ class TestWrapper:
         results (list of tuples): Each tuple contains (augmentation_name, parameter_value, IoU, Pixel Accuracy, Dice)
         filename (str): The name of the output CSV file
         """
+        filename = 'augmentation-results/' + filename
         fieldnames = ['Augmentation', 'Parameter Value', 'Avg IoU Loss', 'Avg Pixel Accuracy Loss', 'Avg Dice Loss']
         
         # Open the file in append mode (or create it if it doesn't exist)
