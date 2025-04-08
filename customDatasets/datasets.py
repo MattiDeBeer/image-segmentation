@@ -12,44 +12,77 @@ import os
 import warnings
     
 class CustomImageDataset(Dataset):
-
+    """
+    A custom PyTorch Dataset class for loading and processing an image segmentation dataset.
+    This dataset is designed to work with augmented datasets and supports caching for faster access.
+    Attributes:
+        dataset (Dataset): The loaded dataset, either from a local directory or downloaded from Hugging Face Hub.
+        augmentations_per_datapoint (int): The number of augmentations to apply per datapoint, including the original datapoint.
+        cache (bool): Whether to cache the dataset in memory for faster access.
+        dataset_length (int): The total length of the dataset, accounting for augmentations.
+        dataset_cache (list): A cached version of the dataset, if caching is enabled.
+    Methods:
+        __len__(): Returns the total number of datapoints in the dataset, including augmentations.
+        __getitem__(idx): Retrieves the image and mask for the given index, applying augmentations if necessary.
+        _deserialize_datapoint(datapoint): Converts a serialized datapoint into a PyTorch tensor for the image and mask.
+        _deserialize_numpy(byte_data, shape, dtype): Converts serialized byte data into a NumPy array with the specified shape and data type.
+    """
     def __init__(self,dataset_loc = 'Data/Oxford-IIIT-Pet-Augmented', augmentations_per_datapoint = 0, split='validation', cache=False):
         
+        # Ensure the split is valid
         if split not in ['train', 'validation', 'test']:
             raise ValueError(f"split must be one of: 'train', 'validation', 'test'. You selected {split}")
         
-        assert isinstance(augmentations_per_datapoint,int) and augmentations_per_datapoint >= 0, f"You must choose a positive integer for augmentations per datapoint, you choose: {augmentations_per_datapoint}"
+        # Validate that augmentations_per_datapoint is a non-negative integer
+        assert isinstance(augmentations_per_datapoint, int) and augmentations_per_datapoint >= 0, \
+            f"You must choose a positive integer for augmentations per datapoint, you choose: {augmentations_per_datapoint}"
 
         try:
+            # Attempt to load the dataset from the specified location
             self.dataset = load_dataset(dataset_loc, split=split)
         except Exception as e: 
+            # Handle the case where the dataset is not found locally or on the Hugging Face Hub
             if "doesn't exist on the Hub or cannot be accessed" in str(e):
                 print(f"Error: The dataset was not found locally")
-                download_huggingface_dataset("mattidebeer/Oxford-IIIT-Pet-Augmented",dataset_loc,split=split)
+                # Download the dataset from the Hugging Face Hub
+                download_huggingface_dataset("mattidebeer/Oxford-IIIT-Pet-Augmented", dataset_loc, split=split)
+                # Reload the dataset after downloading
                 self.dataset = load_dataset(dataset_loc, split=split)
             else:
+                # Raise any other unexpected errors
                 print(f"An unexpected error occurred: {e}")
 
+        # Increment augmentations_per_datapoint to include the original datapoint
         self.augmentations_per_datapoint = augmentations_per_datapoint + 1
 
+        # Enable caching if specified
         self.cache = cache
 
+        # Calculate the total dataset length, accounting for augmentations
         self.dataset_length = len(self.dataset) * self.augmentations_per_datapoint
 
         if self.cache:
+            # Define the cache file path
             cache_file = os.path.join(dataset_loc, f"{split}_dataset.pt")
+            
+            # Check if the cache file already exists
             if os.path.exists(cache_file):
                 print(f"Loading dataset cache from {cache_file}")
+                # Load the cached dataset from the file
                 self.dataset_cache = torch.load(cache_file, weights_only=True)
             else:
                 print(f"Cache not found. Creating and saving dataset cache at {cache_file}")
+                # Create a new cache by deserializing each datapoint
                 self.dataset_cache = []
                 for datapoint in tqdm(self.dataset, desc=f"Caching {split} dataset:", leave=False, total=len(self.dataset)):
                     self.dataset_cache.append(self._deserialize_datapoint(datapoint))
 
+                # Save the newly created cache to the file
                 torch.save(self.dataset_cache, cache_file)
+                # Reload the cache to ensure consistency
                 self.dataset_cache = torch.load(cache_file, weights_only=True)
 
+            # Remove the original dataset from memory to save space
             del self.dataset
 
     def __len__(self):
@@ -57,32 +90,70 @@ class CustomImageDataset(Dataset):
 
     
     def _deserialize_datapoint(self,datapoint):
+        """
+        Deserialize a single datapoint into a PyTorch tensor for the image and a processed mask.
+
+        Args:
+            datapoint (dict): A dictionary containing:
+                - 'image': Serialized numpy array representing the image.
+                - 'mask': Serialized numpy array representing the segmentation mask.
+
+        Returns:
+            tuple: A tuple containing:
+                - image (torch.Tensor): The image tensor with shape (C, H, W) and values normalized to [0, 1].
+                - mask (torch.Tensor): The processed mask tensor with integer values representing categories:
+                    - 1 for cat regions.
+                    - 2 for dog regions.
+                    - Additional values for uncertainty regions based on the original mask.
+        """
+        # Deserialize the image from the serialized numpy array
         image = self._deserialize_numpy(datapoint['image'])
-        mask = self._deserialize_numpy(datapoint['mask'],shape=(256,256))
+        # Deserialize the mask from the serialized numpy array with the specified shape
+        mask = self._deserialize_numpy(datapoint['mask'], shape=(256, 256))
 
-        image = torch.from_numpy(image).permute(2,0,1).float() / 255.0
+        # Convert the image to a PyTorch tensor, permute dimensions to (C, H, W), and normalize to [0, 1]
+        image = torch.from_numpy(image).permute(2, 0, 1).float() / 255.0
 
-        cat_mask = np.where(mask == 38, 1,0)
-        dog_mask = np.where(mask == 75, 2,0)
-        uncertianty_mask = np.where(mask == 255,1,0)
+        # Create binary masks for different regions in the segmentation mask
+        cat_mask = np.where(mask == 38, 1, 0)  # Mask for cat regions
+        dog_mask = np.where(mask == 75, 2, 0)  # Mask for dog regions
+        uncertianty_mask = np.where(mask == 255, 1, 0)  # Mask for uncertain regions
 
+        # Combine masks based on the presence of cat or dog regions
         if cat_mask.sum() > 0:
+            # If cat regions exist, combine cat mask with uncertainty mask
             mask = cat_mask + uncertianty_mask
         else:
-            mask = dog_mask + 2*uncertianty_mask
+            # Otherwise, combine dog mask with uncertainty mask (scaled by 2)
+            mask = dog_mask + 2 * uncertianty_mask
 
+        # Return the processed image and mask as PyTorch tensors
         return image, torch.tensor(mask)
     
     def _deserialize_numpy(self,byte_data, shape=(256,256,3), dtype=np.uint8):
+        # Deserialize the byte data into a NumPy array with the specified shape and data type
         return copy.deepcopy(np.frombuffer(byte_data, dtype=dtype).reshape(shape))
     
     def __getitem__(self, idx):
+        """
+        Retrieve the image and mask for the given index, applying augmentations if necessary.
 
+        Args:
+            idx (int): The index of the datapoint to retrieve.
+
+        Returns:
+            tuple: A tuple containing:
+                - image (torch.Tensor): The image tensor with shape (C, H, W).
+                - mask (torch.Tensor): The segmentation mask tensor.
+        """
+        # Calculate the index of the original image in the dataset
         image_index = idx // self.augmentations_per_datapoint
 
         if self.cache:
+            # If caching is enabled, retrieve the image and mask from the cache
             image, mask = self.dataset_cache[image_index]
         else:
+            # Otherwise, deserialize the datapoint from the dataset
             datapoint = self.dataset[image_index]
             image, mask = self._deserialize_datapoint(datapoint)
 
@@ -92,25 +163,88 @@ class CustomImageDataset(Dataset):
 
 
 class DummyDataset:
+    """
+    A dummy dataset class for generating random image and label data.
+    Attributes:
+        image_channels (int): Number of channels in the generated images. Default is 3.
+        width (int): Width of the generated images. Default is 256.
+        height (int): Height of the generated images. Default is 256.
+        label_channels (int): Number of channels in the generated labels. If 1, labels are 
+                            generated as integer class indices. Otherwise, labels are 
+                            generated as softmax probabilities. Default is 2.
+        length (int): Number of samples in the dataset. Default is 100.
+        device (torch.device): The device on which tensors are created (CPU or GPU).
+    Methods:
+        __len__():
+            Returns the number of samples in the dataset.
+        __getitem__(idx):
+            Generates a random image and label pair for the given index.
+            Args:
+                idx (int): Index of the sample to retrieve.
+            Returns:
+                tuple: A tuple containing:
+                    - image (torch.Tensor): A tensor of shape 
+                    (image_channels, width, height) representing the random image.
+                    - label (torch.Tensor): A tensor representing the random label. If 
+                    label_channels is 1, the shape is (width, height) with integer 
+                    class indices. Otherwise, the shape is 
+                    (label_channels, width, height) with softmax probabilities.
+    """
  
-     def __init__(self,image_channels=3,width=256,height=256,label_channels=2,length = 100):
-         self.image_channels = image_channels
-         self.width = width
-         self.height = height
-         self.label_channels = label_channels
-         self.device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
-         self.length = length
- 
-     def __len__(self):
-         return self.length
- 
-     def __getitem__(self,idx):
- 
-        image = torch.rand(self.image_channels,self.width,self.height)
+    def __init__(self, image_channels=3, width=256, height=256, label_channels=2, length=100):
+        """
+        Initialize the DummyDataset with the specified parameters.
+
+        Args:
+            image_channels (int): Number of channels in the generated images. Default is 3.
+            width (int): Width of the generated images. Default is 256.
+            height (int): Height of the generated images. Default is 256.
+            label_channels (int): Number of channels in the generated labels. If 1, labels are 
+                                  generated as integer class indices. Otherwise, labels are 
+                                  generated as softmax probabilities. Default is 2.
+            length (int): Number of samples in the dataset. Default is 100.
+        """
+        self.image_channels = image_channels
+        self.width = width
+        self.height = height
+        self.label_channels = label_channels
+        self.device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
+        self.length = length
+
+    def __len__(self):
+        """
+        Return the number of samples in the dataset.
+
+        Returns:
+            int: The total number of samples in the dataset.
+        """
+        return self.length
+
+    def __getitem__(self, idx):
+        """
+        Generate a random image and label pair for the given index.
+
+        Args:
+            idx (int): Index of the sample to retrieve.
+
+        Returns:
+            tuple: A tuple containing:
+                - image (torch.Tensor): A tensor of shape 
+                  (image_channels, width, height) representing the random image.
+                - label (torch.Tensor): A tensor representing the random label. If 
+                  label_channels is 1, the shape is (width, height) with integer 
+                  class indices. Otherwise, the shape is 
+                  (label_channels, width, height) with softmax probabilities.
+        """
+        # Generate a random image tensor with the specified dimensions
+        image = torch.rand(self.image_channels, self.width, self.height)
+
         if self.label_channels == 1:
+            # Generate a random label tensor with integer class indices
             label = torch.randint(0, 3, (self.width, self.height)).long()
         else:
-             label = torch.softmax(torch.rand(self.label_channels,self.width,self.height),dim=0)
+            # Generate a random label tensor with softmax probabilities
+            label = torch.softmax(torch.rand(self.label_channels, self.width, self.height), dim=0)
 
         return image, label
 
@@ -193,8 +327,6 @@ class CustomImageDatasetNew(Dataset):
 
         return image, mask
     
-
-
 
 class CustomImageDatasetRobust(Dataset):
 

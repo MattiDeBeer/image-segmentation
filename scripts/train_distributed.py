@@ -62,10 +62,15 @@ if __name__ == "__main__":
 
 # Note: This script should be run using torchrun or similar command to handle distributed training.
 # For example:
-# torchrun --nproc_per_node=NUM_GPUS scripts/train_distributed.py
+# torchrun --nproc_per_node=NUM_GPUS --master-port= ...  scripts/train_distributed.py
 # where NUM_GPUS is the number of GPUs you want to use.
 # Ensure that the environment variable LOCAL_RANK is set correctly for each process.
 # This script assumes that the model and datasets are already set up for distributed training.
 # The `DistributedTrainingWrapper` class should handle the distributed training logic.
+# Make sure to adjust the paths and configurations according to your setup.
+# The script is designed to be run in a distributed environment with multiple GPUs.
+# The `setup` function initializes the process group for distributed training.
+# The `cleanup` function destroys the process group after training is complete.
+# The `main_ddp` function sets up the model, data loaders, and trainer for distributed training.
 
 

@@ -257,10 +257,6 @@ def plot_segmentations(images, predictions, class_colors=None, alpha=0.5, n_cols
         ax.imshow(blended)
         ax.axis("off")
 
-        # Add legend only for the first image
-        if i == 0:
-            legend_patches = [Patch(color=np.array(color) / 255, label=class_labels[cls]) for cls, color in class_colors.items() if cls < len(class_labels)]
-            ax.legend(handles=legend_patches, loc='upper right')
 
     # Hide any unused subplots
     for j in range(i + 1, len(axes)):
@@ -269,75 +265,6 @@ def plot_segmentations(images, predictions, class_colors=None, alpha=0.5, n_cols
     plt.tight_layout()
     plt.show()
 
-def convert_prediciton(masks, classes):
-    """
-    Converts predicted masks and class probabilities into a single tensor 
-    with background, cat, and dog segmentation masks.
-    Args:
-        masks (Tensor): A tensor of predicted mask probabilities.
-        classes (Tensor): A tensor of predicted class probabilities.
-    Returns:
-        Tensor: A tensor containing background, cat, and dog masks.
-    """
-
-    # Threshold the predicted masks and classes to binary values
-    det_masks = (masks > 0.5).float()  # Masks with values > 0.5 are considered detected
-    det_classes = (classes > 0.5).float()  # Classes with probabilities > 0.5 are considered detected
-
-    # Create background masks by inverting the detected masks
-    bg_masks = 1 - det_masks
-
-    # Create cat masks by combining detected masks with non-detected classes
-    cat_masks = det_masks * (1 - det_classes.unsqueeze(-1).unsqueeze(-1))
-
-    # Create dog masks by combining detected masks with detected classes
-    dog_masks = det_masks * det_classes.unsqueeze(-1).unsqueeze(-1)
-
-    # Concatenate the background, cat, and dog masks along the channel dimension
-    out_masks = torch.cat([bg_masks, cat_masks, dog_masks], dim=1)
-
-    # Return the final output masks
-    return out_masks
-
-def convert_targets(masks,classes):
-    def convert_targets(masks, classes):
-        """
-        Converts binary segmentation masks into categorical masks based on class labels.
-
-        This function takes binary segmentation masks and a tensor of class labels, 
-        and converts them into a single categorical mask where:
-          - Pixels corresponding to class 0 (e.g., "cat") are labeled as 1.
-          - Pixels corresponding to class 1 (e.g., "dog") are labeled as 2.
-
-        Args:
-            masks (torch.Tensor): A tensor of binary segmentation masks with shape 
-                                  (batch_size, 1, height, width).
-            classes (torch.Tensor): A tensor of class labels with shape (batch_size,), 
-                                    where each value is either 0 or 1.
-
-        Returns:
-            torch.Tensor: A tensor of categorical masks with shape (batch_size, height, width), 
-                          where pixel values are:
-                          - 0 for background
-                          - 1 for class 0 (e.g., "cat")
-                          - 2 for class 1 (e.g., "dog")
-        """
-
-    # Create cat masks by combining the binary masks with the inverse of the class labels
-    cat_masks = masks * (1 - classes.unsqueeze(-1).unsqueeze(-1))
-
-    # Create dog masks by combining the binary masks with the class labels
-    dog_masks = masks * classes.unsqueeze(-1).unsqueeze(-1)
-
-    # Combine the cat and dog masks into a single categorical mask
-    # Assign 1 for cat pixels and 2 for dog pixels
-    out_masks = cat_masks + 2 * dog_masks
-
-    # Convert the output masks to integer type
-    out_masks = out_masks.long()
-
-    # Remove the channel dimension for the final output
-    return out_masks.squeeze(1)
 
 
 

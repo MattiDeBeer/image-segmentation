@@ -12,7 +12,7 @@ class HybridLoss(nn.Module):
 
     def forward(self, pred, target):
 
-        return  self.ce(pred, target) #+ 0.25 * self.combined_confusion_loss(pred,target)
+        return  self.ce(pred, target)
     
 class HybridLossBinary(nn.Module):
     def __init__(self):

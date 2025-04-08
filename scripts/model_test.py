@@ -5,11 +5,13 @@ from models.CLIP_models import ClipUnet, ClipResSegmentationModel, ClipAutoencod
 from customDatasets.datasets import CustomImageDataset
 
 tester = TestWrapper(
-    model=LargeUNet(),
+    model=ClipAutoencoder(),
     test_dataset_class=CustomImageDataset,
     batch_size=16,
-    model_load_location="results/models/LargeUNet/best_model.pth",
+    model_load_location="saved-models/ClipAutoencoder/best_model.pth",
     test_dataset_args = {'split':'test','augmentations_per_datapoint' : 0, 'cache' : False},
 )
 
+tester.test()
 tester.test_robustness()
+tester.plot_predicitons()
