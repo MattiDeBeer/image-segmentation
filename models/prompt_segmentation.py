@@ -14,18 +14,18 @@ from models.pre_trained import SegmentationDecoderSkip
     
 
 class PromptEncoder(nn.Module):
-    def __init__(self, out_channels=256):
+    def __init__(self, out_channels=512):
         super().__init__()
-        self.encoder = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(16, out_channels, kernel_size=3, padding=1),
-            nn.ReLU()
-        )
+        self.enc1 = ConvBlockDownsample(1, 32)   
+        self.enc2 = ConvBlockDownsample(32, 64)     
+        self.enc3 = ConvBlockDownsample(64, out_channels)    
 
     def forward(self, x):
-        return self.encoder(x)  # shape [B, out_channels, H, W]
+        x1 = self.enc1(x)
+        x2 = self.enc2(x1)
+        x3 = self.enc3(x2)
 
+        return x3  # Now the output is [B, out_channels, 32, 32]
 class ClipUnetPrompt(nn.Module):
 
     def __init__(self, out_channels=1, in_channels=3, activation=nn.Identity()):
