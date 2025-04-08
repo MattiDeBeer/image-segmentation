@@ -17,7 +17,7 @@ from models.losses import HybridLossBinary, IoUBinary, PixelAccuracyBinary, Dice
 # Dataset class
 from customDatasets.datasets import PromptImageDataset
 # Model component (implements prompt fusion)
-from models.simpleunetprompt import SimplePromptUnet
+from models.simpleClipUnet import SimpleClipUnetPrompt
 # Helper functions for logging and saving info
 from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header, log_loss_to_csv
 # New data augmentor for prompt-based segmentation
@@ -52,7 +52,7 @@ val_loader   = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, pin
 
 
 # Initialize the model and move it to device
-model = SimplePromptUnet()
+model = SimpleClipUnetPrompt()
 model.to(device)
 
 # Initialize optimizer and loss function
