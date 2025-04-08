@@ -257,6 +257,182 @@ class TestWrapper:
         tqdm.write(f"Dice: {avg_dice_loss:.4f}")
         tqdm.write('\n')
 
+
+    
+    def test_augmentation(self,augmentation, param_val):
+            
+            iou = IoU()
+            dice = Dice()
+            pixel_acc = PixelAccuracy()
+
+
+        # Validation loop
+            self.model.eval()  # Set the model to evaluation mode
+            running_iou_loss = 0.0
+            running_pixel_acc_loss = 0.0
+            running_dice_loss = 0.0
+
+            augmentation.to(self.device)
+        
+            with torch.no_grad():  # No gradients needed during validation
+                for inputs, targets in tqdm(self.test_dataloader, desc=f"Evaluating performance metric {augmentation.__class__.__name__} for paramater value {param_val}", leave=False):
+                    inputs, targets = inputs.to(self.device, non_blocking=True), targets.to(self.device, non_blocking=True)
+
+                    # Apply the augmentation
+                    inputs, targets = augmentation(inputs, targets)
+                    
+                    # Forward pass
+                    outputs = self.model(inputs)
+                    
+                    iou_loss = iou(outputs, targets)
+                    pixel_acc_loss = pixel_acc(outputs, targets)
+                    dice_loss = 2 * iou(outputs, targets) / (1 + iou(outputs, targets))
+                    
+                    running_iou_loss += iou_loss.item()
+                    running_pixel_acc_loss += pixel_acc_loss.item()
+                    running_dice_loss += dice_loss.item()
+            
+            # Calculate average validation losses
+            avg_iou_loss = running_iou_loss / len(self.test_dataloader)
+            avg_pixel_acc_loss = running_pixel_acc_loss / len(self.test_dataloader)
+            avg_dice_loss = dice_loss / len(self.test_dataloader)
+
+            return avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss
+        
+    def log_results_to_csv(results, filename='augmentation_results.csv'):
+        """
+        Logs the results of the augmentation tests into a CSV file.
+        
+        Arguments:
+        results (list of tuples): Each tuple contains (augmentation_name, parameter_value, IoU, Pixel Accuracy, Dice)
+        filename (str): The name of the output CSV file
+        """
+        fieldnames = ['Augmentation', 'Parameter Value', 'Avg IoU Loss', 'Avg Pixel Accuracy Loss', 'Avg Dice Loss']
+        
+        # Open the file in append mode (or create it if it doesn't exist)
+        with open(filename, mode='a', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            
+            # Write headers only if the file is empty
+            if file.tell() == 0:
+                writer.writeheader()
+            
+            # Write each row to the CSV file
+            for result in results:
+                writer.writerow({
+                    'Augmentation': result[0],
+                    'Parameter Value': result[1],
+                    'Avg IoU Loss': result[2],
+                    'Avg Pixel Accuracy Loss': result[3],
+                    'Avg Dice Loss': result[4]
+                })
+
+
+    def test_gaussian_pixel_noise(self, parameter_values):
+        """
+        Tests Gaussian Pixel Noise augmentation with different parameter values.
+        
+        Arguments:
+        parameter_values (list): List of standard deviation values for the Gaussian noise
+        """
+        results = []
+        for std in parameter_values:
+            augmentation = GaussianPixelNoise(std)
+            avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss = self.test_augmentation(augmentation, std)
+            results.append(('Gaussian Pixel Noise', std, avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss))
+        
+        # Log the results to a CSV
+        self.log_results_to_csv(results, filename='gaussian_pixel_noise_results.csv')
+
+
+    def test_repeated_blur(self, parameter_values):
+        """
+        Tests Repeated Blur augmentation with different parameter values.
+        
+        Arguments:
+        parameter_values (list): List of values for the number of blur repetitions
+        """
+        results = []
+        for times in parameter_values:
+            augmentation = RepeatedBlur(times)
+            avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss = self.test_augmentation(augmentation, times)
+            results.append(('Repeated Blur', times, avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss))
+        
+        # Log the results to a CSV
+        self.log_results_to_csv(results, filename='repeated_blur_results.csv')
+
+
+    def test_contrast_change(self, parameter_values):
+        """
+        Tests Contrast Change augmentation with different parameter values.
+        
+        Arguments:
+        parameter_values (list): List of contrast factor values
+        """
+        results = []
+        for factor in parameter_values:
+            augmentation = ContrastChange(factor)
+            avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss = self.test_augmentation(augmentation, factor)
+            results.append(('Contrast Change', factor, avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss))
+        
+        # Log the results to a CSV
+        self.log_results_to_csv(results, filename='contrast_change_results.csv')
+
+
+    def test_brightness_change(self, parameter_values):
+        """
+        Tests Brightness Change augmentation with different parameter values.
+        
+        Arguments:
+        parameter_values (list): List of brightness offset values
+        """
+        results = []
+        for offset in parameter_values:
+            augmentation = BrightnessChange(offset)
+            avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss = self.test_augmentation(augmentation, offset)
+            results.append(('Brightness Change', offset, avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss))
+        
+        # Log the results to a CSV
+        self.log_results_to_csv(results,filename='brightness_change_results.csv')
+
+
+    def test_occlusion(self, parameter_values):
+        """
+        Tests Occlusion augmentation with different parameter values.
+        
+        Arguments:
+        parameter_values (list): List of occlusion square sizes
+        """
+        results = []
+        for size in parameter_values:
+            augmentation = Occlusion(size)  
+            avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss = self.test_augmentation(augmentation, size)
+            results.append(('Occlusion', size, avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss))
+        
+        # Log the results to a CSV
+        self.log_results_to_csv(results, filename='occlusion_results.csv')
+
+
+    def test_salt_and_pepper(self, parameter_values):
+        """
+        Tests Salt and Pepper Noise augmentation with different parameter values.
+        
+        Arguments:
+        parameter_values (list): List of noise strength values
+        """
+        results = []
+        for amount in parameter_values:
+            augmentation = SaltAndPepper(amount)
+            avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss = self.test_augmentation(augmentation, amount)
+            results.append(('Salt and Pepper', amount, avg_iou_loss, avg_pixel_acc_loss, avg_dice_loss))
+        
+        # Log the results to a CSV
+        self.log_results_to_csv(results)
+
+
+    def test_robustness(self):
+        self.test_gaussian_pixel_noise([0.01, 0.05, 0.1])
+
 class DistributedTrainingWrapper:
 
     def __init__(self,
