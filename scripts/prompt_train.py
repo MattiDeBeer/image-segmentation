@@ -48,6 +48,27 @@ val_dataset = PromptImageDataset(
 # Create DataLoader objects
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
 val_loader   = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
+import matplotlib.pyplot as plt
+
+images, prompts, labels = next(iter(train_loader))
+
+for i in range(2):  # Show two examples
+    plt.figure(figsize=(12, 3))
+
+    plt.subplot(1, 3, 1)
+    plt.imshow(images[i].permute(1, 2, 0).cpu())
+    plt.title("Image")
+
+    plt.subplot(1, 3, 2)
+    plt.imshow(prompts[i, 0].cpu(), cmap='hot')
+    plt.title("Prompt Heatmap")
+
+    plt.subplot(1, 3, 3)
+    plt.imshow(labels[i, 0].cpu(), cmap='gray')
+    plt.title("Label")
+
+    plt.tight_layout()
+    plt.show()
 
 # Initialize the model and move it to device
 model = ClipUnetPrompt()
@@ -81,6 +102,7 @@ for epoch in tqdm(range(num_epochs), desc='Training', unit='Epoch'):
 
     # Training loop: note that PromptImageDataset returns (image, prompt_map, label)
     for images, prompt_maps, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs} Training", leave=False):
+        
         print("images:", images.shape, images.dtype, images.min().item(), images.max().item())
         print("prompt_maps:", prompt_maps.shape, prompt_maps.dtype, prompt_maps.min().item(), prompt_maps.max().item())
         print("labels:", labels.shape, labels.dtype, labels.min().item(), labels.max().item())
@@ -111,6 +133,7 @@ for epoch in tqdm(range(num_epochs), desc='Training', unit='Epoch'):
     running_dice_loss = 0.0
     with torch.no_grad():
         for images, prompt_maps, labels in tqdm(val_loader, desc=f"Epoch {epoch+1}/{num_epochs} Validation", leave=False):
+            
             images = images.to(device)
             prompt_maps = prompt_maps.to(device)
             labels = labels.to(device)
