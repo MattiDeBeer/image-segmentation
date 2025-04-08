@@ -1,5 +1,5 @@
 from customDatasets.datasets import CustomImageDataset
-from models.processing_blocks import DataAugmentor
+from models.processing_blocks import *
 from models.UNet import UNet
 from torch.utils.data import DataLoader
 from models.helperFunctions import *
