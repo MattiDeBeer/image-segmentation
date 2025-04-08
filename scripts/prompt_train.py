@@ -90,7 +90,7 @@ for epoch in tqdm(range(num_epochs), desc='Training', unit='Epoch'):
         
         optimizer.zero_grad()
         outputs = model(images, prompt_maps)  # Expected output: [B, num_classes, H, W]
-        loss = criterion(outputs, labels.long())
+        loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
         
