@@ -81,6 +81,10 @@ for epoch in tqdm(range(num_epochs), desc='Training', unit='Epoch'):
 
     # Training loop: note that PromptImageDataset returns (image, prompt_map, label)
     for images, prompt_maps, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs} Training", leave=False):
+        print("images:", images.shape, images.dtype, images.min().item(), images.max().item())
+        print("prompt_maps:", prompt_maps.shape, prompt_maps.dtype, prompt_maps.min().item(), prompt_maps.max().item())
+        print("labels:", labels.shape, labels.dtype, labels.min().item(), labels.max().item())
+        break  # just look at first batch
         images = images.to(device, non_blocking=True)        # [B, 3, H, W]
         prompt_maps = prompt_maps.to(device, non_blocking=True)  # [B, 1, H, W]
         labels = labels.to(device, non_blocking=True)          # [B, 3, H, W]
