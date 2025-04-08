@@ -226,35 +226,45 @@ class DataAugmentorPrompt(nn.Module):
         )
 
     def transform_batch(self, images, masks, prompts):
+        """
+        images: [B, 3, H, W]     - color images
+        masks:  [B, 1, H, W]     - binary segmentation masks (0/1 in float)
+        prompts:[B, 1, H, W]     - prompt maps (float)
+        """
+        # Concatenate along channel dimension => shape: [B, (3 + 1 + 1)=5, H, W]
+        concat = torch.cat([images, masks, prompts], dim=1)
+        
+        # Apply geometric transforms (flip, rotation) to everything
+        concat = self.geometric_transforms(concat)
+        
+        # Split back:
+        images_aug  = concat[:, :3]         # [B,3,H,W]
+        masks_aug   = concat[:, 3:4]        # [B,1,H,W]
+        prompts_aug = concat[:, 4:5]        # [B,1,H,W]
 
-        if masks.dim() == 3:
-            masks = masks.unsqueeze(1)
-    
-        concatenated_batch = torch.cat([images, masks.float(), prompts.float()], dim=1)  
-        concatenated_batch = self.geometric_transforms(concatenated_batch)
-
-        # Split them back:
-        images_aug = concatenated_batch[:, :3, :, :]
-        masks_aug = concatenated_batch[:, 3:4, :, :]   
-        prompts_aug = concatenated_batch[:, 4:5, :, :]   
-
-        # Apply colour transforms only to the images:
+        # Apply color transforms only to the images
         images_aug = self.colour_transforms(images_aug)
 
-        return images_aug, masks_aug.long(), prompts_aug
+        # Keep masks and prompts as float (binary masks)
+        return images_aug, masks_aug, prompts_aug
 
     def forward(self, images, masks, prompts):
-        # Save original unaugmented items based on augmentations_per_datapoint
+        """
+        images:  [B,3,H,W]
+        masks:   [B,1,H,W]  (binary)
+        prompts: [B,1,H,W]
+        """
+        # Save original unaugmented items so they remain untransformed in some fraction of the batch
         saved_images  = images[::self.augmentations_per_datapoint + 1]
         saved_masks   = masks[::self.augmentations_per_datapoint + 1]
         saved_prompts = prompts[::self.augmentations_per_datapoint + 1]
 
-        transformed_images, transformed_masks, transformed_prompts = self.transform_batch(images, masks, prompts)
+        # Apply the transform to the batch
+        images_aug, masks_aug, prompts_aug = self.transform_batch(images, masks, prompts)
 
-        # Reinsert the saved (non-augmented) items:
-        transformed_images[::self.augmentations_per_datapoint + 1]  = saved_images
-        transformed_masks[::self.augmentations_per_datapoint + 1]   = saved_masks.unsqueeze(1)  # ensure channel dimension
-        transformed_prompts[::self.augmentations_per_datapoint + 1] = saved_prompts
+        # Restore the saved (non-augmented) items
+        images_aug[::self.augmentations_per_datapoint + 1]  = saved_images
+        masks_aug[::self.augmentations_per_datapoint + 1]   = saved_masks
+        prompts_aug[::self.augmentations_per_datapoint + 1] = saved_prompts
 
-        # If your downstream expects masks to be [B, H, W], squeeze the channel dimension:
-        return transformed_images, transformed_masks.squeeze(1), transformed_prompts
+        return images_aug, masks_aug, prompts_aug

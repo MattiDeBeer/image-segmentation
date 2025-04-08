@@ -13,7 +13,7 @@ import time
 from tqdm import tqdm
 
 # Loss and metric functions
-from models.losses import HybridLoss, IoU, PixelAccuracy, Dice
+from models.losses import HybridLossBinary, IoUBinary, PixelAccuracyBinary, DiceBinary
 # Dataset class
 from customDatasets.datasets import PromptImageDataset
 # Model component (implements prompt fusion)
@@ -55,11 +55,11 @@ model.to(device)
 
 # Initialize optimizer and loss function
 optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-criterion = HybridLoss()
+criterion = HybridLossBinary()
 
 # Initialize metrics
-iou_metric = IoU()
-pixel_acc_metric = PixelAccuracy()
+iou_metric = IoUBinary()
+pixel_acc_metric = PixelAccuracyBinary()
 # For dice, we'll compute it from the IoU value, e.g., dice = 2 * IoU / (1 + IoU)
 
 # Set up logging and checkpoint folder
@@ -90,7 +90,7 @@ for epoch in tqdm(range(num_epochs), desc='Training', unit='Epoch'):
         
         optimizer.zero_grad()
         outputs = model(images, prompt_maps)  # Expected output: [B, num_classes, H, W]
-        loss = criterion(outputs, labels.long())
+        loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
         
@@ -112,7 +112,7 @@ for epoch in tqdm(range(num_epochs), desc='Training', unit='Epoch'):
             labels = labels.to(device)
             
             outputs = model(images, prompt_maps)
-            hybrid_loss = criterion(outputs, labels.long())
+            hybrid_loss = criterion(outputs, labels)
             iou_loss = iou_metric(outputs, labels)
             pixel_acc_loss = pixel_acc_metric(outputs, labels)
             # Compute dice loss as a function of IoU: for example, dice = 2*IoU/(1+IoU)

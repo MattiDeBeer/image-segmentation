@@ -307,9 +307,15 @@ class PromptImageDataset(Dataset):
 
          # 4) Build the segmentation label as a single-channel tensor with class indices.
         # Assign: 0 for cat, 1 for dog, and 2 for background.
-        label = torch.full_like(cat_mask, fill_value=2, dtype=torch.long)
-        label[cat_mask == 1] = 0
-        label[dog_mask == 1] = 1
+        label = torch.zeros_like(cat_mask, dtype=torch.float32)
+        if chosen_class == "cat":
+            label[cat_mask == 1] = 1.0
+        elif chosen_class == "dog":
+            label[dog_mask == 1] = 1.0
+        else:
+            label[background_mask == 1] = 1.0
+        label = label.unsqueeze(0)
+    
 
         return image, prompt_map, label
 
