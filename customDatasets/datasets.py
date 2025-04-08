@@ -115,6 +115,87 @@ class DummyDataset:
         return image, label
 
 
+    
+class CustomImageDatasetNew(Dataset):
+
+    def __init__(self,dataset_loc = 'Data/Oxford-IIIT-Pet-Augmented', augmentations_per_datapoint = 0, split='validation', cache=False):
+        
+        if split not in ['train', 'validation', 'test']:
+            raise ValueError(f"split must be one of: 'train', 'validation', 'test'. You selected {split}")
+        
+        assert isinstance(augmentations_per_datapoint,int) and augmentations_per_datapoint >= 0, f"You must choose a positive integer for augmentations per datapoint, you choose: {augmentations_per_datapoint}"
+
+        try:
+            self.dataset = load_dataset(dataset_loc, split=split)
+        except Exception as e: 
+            if "doesn't exist on the Hub or cannot be accessed" in str(e):
+                print(f"Error: The dataset was not found locally")
+                download_huggingface_dataset("mattidebeer/Oxford-IIIT-Pet-Augmented",dataset_loc,split=split)
+                self.dataset = load_dataset(dataset_loc, split=split)
+            else:
+                print(f"An unexpected error occurred: {e}")
+
+        self.augmentations_per_datapoint = augmentations_per_datapoint + 1
+
+        self.cache = cache
+
+        self.dataset_length = len(self.dataset) * self.augmentations_per_datapoint
+
+        if self.cache:
+            cache_file = os.path.join(dataset_loc, f"{split}_dataset.pt")
+            if os.path.exists(cache_file):
+                print(f"Loading dataset cache from {cache_file}")
+                self.dataset_cache = torch.load(cache_file, weights_only=True)
+            else:
+                print(f"Cache not found. Creating and saving dataset cache at {cache_file}")
+                self.dataset_cache = []
+                for datapoint in tqdm(self.dataset, desc=f"Caching {split} dataset:", leave=False, total=len(self.dataset)):
+                    self.dataset_cache.append(self._deserialize_datapoint(datapoint))
+
+                torch.save(self.dataset_cache, cache_file)
+                self.dataset_cache = torch.load(cache_file, weights_only=True)
+
+            del self.dataset
+
+    def __len__(self):
+        return self.dataset_length
+
+    
+    def _deserialize_datapoint(self,datapoint):
+        image = self._deserialize_numpy(datapoint['image'])
+        mask = self._deserialize_numpy(datapoint['mask'],shape=(256,256))
+
+        image = torch.from_numpy(image).permute(2,0,1).float() 
+
+        cat_mask = np.where(mask == 38, 1,0)
+        dog_mask = np.where(mask == 75, 2,0)
+        uncertianty_mask = np.where(mask == 255,1,0)
+
+        if cat_mask.sum() > 0:
+            mask = cat_mask + uncertianty_mask
+        else:
+            mask = dog_mask + 2*uncertianty_mask
+
+        return image, torch.tensor(mask)
+    
+    def _deserialize_numpy(self,byte_data, shape=(256,256,3), dtype=np.uint8):
+        return copy.deepcopy(np.frombuffer(byte_data, dtype=dtype).reshape(shape))
+    
+    def __getitem__(self, idx):
+
+        image_index = idx // self.augmentations_per_datapoint
+
+        if self.cache:
+            image, mask = self.dataset_cache[image_index]
+        else:
+            datapoint = self.dataset[image_index]
+            image, mask = self._deserialize_datapoint(datapoint)
+
+        return image, mask
+    
+
+
+
 class CustomImageDatasetRobust(Dataset):
 
     def __init__(self,dataset_loc = 'Data/Oxford-IIIT-Pet-Augmented', augmentations_per_datapoint = 2, split='validation'):

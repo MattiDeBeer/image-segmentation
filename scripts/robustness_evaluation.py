@@ -13,7 +13,7 @@ import random
 import numpy as np
 
 #import  classes:
-from customDatasets.datasets import CustomImageDatasetRobust
+from customDatasets.datasets import CustomImageDatasetNew
 from customDatasets.perturbations import (
     GaussianPixelNoise, GaussianBlur, ContrastIncrease, ContrastDecrease,
      BrightnessIncrease, BrightnessDecrease, OcclusionIncrease, SaltPepperNoise)
@@ -53,7 +53,7 @@ def main():
 
 
 
-    base_test_dataset = CustomImageDatasetRobust(
+    base_test_dataset = CustomImageDatasetNew(
          split="test",
          augmentations_per_datapoint=0)
     perturbations = {
