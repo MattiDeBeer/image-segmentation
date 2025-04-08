@@ -8,6 +8,38 @@ import torch
 import numpy as np
 
 def save_training_info(model, optimizer, loss_fn, train_dataloader, val_dataloader, file_path, extra_params=None):
+    """
+    Saves the training configuration and model structure to a JSON file.
+    This function extracts and saves the structure of the model, optimizer, loss function, 
+    and dataloaders, along with any additional parameters provided, into a JSON file for 
+    reproducibility and debugging purposes.
+    Args:
+        model (torch.nn.Module): The PyTorch model whose structure is to be saved.
+        optimizer (torch.optim.Optimizer): The optimizer used for training, including its parameter groups.
+        loss_fn (torch.nn.Module): The loss function used during training.
+        train_dataloader (torch.utils.data.DataLoader): The DataLoader for the training dataset.
+        val_dataloader (torch.utils.data.DataLoader): The DataLoader for the validation dataset.
+        file_path (str): The directory path where the JSON file will be saved. The file will be named 'model_settings.json'.
+        extra_params (dict, optional): Additional parameters to include in the saved JSON file. Defaults to None.
+    Returns:
+        None: The function saves the configuration to a JSON file and does not return any value.
+    Notes:
+        - The model structure is saved as a dictionary containing layer types and their hyperparameters.
+        - The optimizer structure includes learning rate, momentum, and weight decay for each parameter group.
+        - The loss function is saved as its class name.
+        - The dataloader information includes batch size and dataset size.
+        - The JSON file is saved with an indentation of 4 for readability.
+    Example:
+        save_training_info(
+            model=my_model,
+            optimizer=my_optimizer,
+            loss_fn=my_loss_fn,
+            train_dataloader=train_loader,
+            val_dataloader=val_loader,
+            file_path="/path/to/save/",
+            extra_params={"epochs": 50, "learning_rate_schedule": "step"}
+        )
+    """
     # Save the model structure (layers) as a dictionary
     model_structure = {}
     for name, module in model.named_modules():  # Use named_modules instead of named_children to get all layers
@@ -93,8 +125,20 @@ def save_training_info(model, optimizer, loss_fn, train_dataloader, val_dataload
     print(f"Model settings saved to {file_path}model_settings.json")
 
 def get_next_run_folder(base_path):
+    """
+    Creates and returns the path to the next sequentially numbered folder 
+    (e.g., 'run-001', 'run-002', etc.) within the specified base directory. 
+    If the folder already exists, increments the counter until a non-existing 
+    folder is found and created.
+    Args:
+        base_path (str): The base directory where the new folder will be created.
+    Returns:
+        str: The path to the newly created folder, ending with a '/'.
+    """
+
     i = 1
     while True:
+        # Generate a folder name with a zero-padded counter
         folder_name = f"run-{i:03d}"
         folder_path = os.path.join(base_path, folder_name)
         
@@ -102,246 +146,197 @@ def get_next_run_folder(base_path):
         if not os.path.isdir(folder_path):
             # Create the folder
             os.makedirs(folder_path)
-            return folder_path+'/'  # Return the path of the newly created folder
+            # Return the path of the newly created folder
+            return folder_path + '/'
 
-        i += 1  # If folder exists, increment the counter and check again
+        # If folder exists, increment the counter and check again
+        i += 1
 
 def write_csv_header(csv_path):
+    """
+    Creates a CSV file with a header row for logging training and validation metrics 
+    if the file does not already exist.
+    Args:
+        csv_path (str): The directory path where the CSV file will be created.
+    """
+    # Define the path to the CSV file for logging loss
     csv_file = csv_path + 'loss.csv'
+    
+    # Check if the CSV file does not exist
     if not os.path.exists(csv_file):
+        # Create and open the CSV file in write mode
         with open(csv_file, mode='w', newline='') as file:
+            # Initialize a CSV writer
             writer = csv.writer(file)
+            # Write the header row with column names
             writer.writerow(['Epoch', 'Train Loss', 'Validation Loss', 
                            'Val Pixel Accuracy',
                            'Val Mean Dice',
                            'Val IoU'])
 
-def log_loss_to_csv(epoch, train_loss, val_loss, val_pixel_acc, 
-                    val_dice, val_iou, csv_path):
+def log_loss_to_csv(epoch, train_loss, val_loss, val_pixel_acc, val_dice, val_iou, csv_path):
+    """
+    Logs training and validation metrics to a CSV file.
+
+    This function appends a row of metrics, including epoch number, training loss,
+    validation loss, validation pixel accuracy, validation Dice coefficient, and 
+    validation Intersection over Union (IoU), to a CSV file.
+
+    Args:
+        epoch (int): The current epoch number.
+        train_loss (float): The training loss for the current epoch.
+        val_loss (float): The validation loss for the current epoch.
+        val_pixel_acc (float): The pixel accuracy on the validation set.
+        val_dice (float): The Dice coefficient on the validation set.
+        val_iou (float): The Intersection over Union (IoU) on the validation set.
+        csv_path (str): The directory path where the CSV file is located. The file
+                        will be named 'loss.csv' and appended to this path.
+
+    Returns:
+        None
+    """  
+    # Define the path to the CSV file
     csv_file = csv_path + 'loss.csv'
+    # Open the CSV file in append mode
     with open(csv_file, mode='a', newline='') as file:
+        # Initialize a CSV writer
         writer = csv.writer(file)
+        # Write a row with the provided metrics
         writer.writerow([epoch, train_loss, val_loss,
                         val_pixel_acc,
                         val_dice,
                         val_iou])
+        
+def plot_segmentations(images, predictions, class_colors=None, alpha=0.5, n_cols=4):
+    """
+    Visualize image segmentations by overlaying predictions on input images.
+    Args:
+        images (torch.Tensor or np.ndarray): Batch of input images, shape (N, C, H, W) or (N, H, W, C).
+        predictions (torch.Tensor or np.ndarray): Batch of segmentation predictions, shape (N, H, W).
+        class_colors (dict, optional): Mapping of class indices to RGB colors. Defaults to predefined colors.
+        alpha (float, optional): Transparency level for overlay blending. Defaults to 0.5.
+        n_cols (int, optional): Number of columns in the plot grid. Defaults to 4.
+    Returns:
+        None: Displays the segmentation visualization.
+    """
+    class_labels = ['Background', 'Cat', 'Dog']
 
-def show_datapoint(datapoint):
+    # Convert images and predictions to NumPy arrays
+    if isinstance(images, torch.Tensor):
+        images = images.cpu().numpy().transpose(0, 2, 3, 1)  # Convert to (N, H, W, C)
+    if isinstance(predictions, torch.Tensor):
+        predictions = torch.nn.functional.softmax(predictions, dim=1).argmax(dim=1).cpu().numpy()  # Convert to (N, H, W)
 
-    image = datapoint[0]
-    label = datapoint[1]
-    
-    plt.figure(figsize=(12,4))
+    # Define default colors if none provided
+    if class_colors is None:
+        class_colors = {
+            0: (0, 0, 0),       # Background (transparent)
+            1: (0, 0, 255),     # Cat (blue)
+            2: (0, 255, 0)      # Dog (green)
+        }
 
-    plt.subplot(141)
-    plt.imshow(image.permute(1,2,0).cpu())
-    plt.title('Original Image')
+    # Determine the number of rows for the plot
+    n_images = len(images)
+    n_rows = (n_images + n_cols - 1) // n_cols
 
-    plt.subplot(142)
-    plt.imshow(label[0].cpu(), cmap='gray')
-    plt.title('Cat Mask')
+    # Create the figure
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols * 4, n_rows * 4))
+    axes = axes.flatten()
 
-    plt.subplot(143)
-    plt.imshow(label[1].cpu(), cmap='gray')
-    plt.title('Dog Mask')
+    for i, (image, prediction) in enumerate(zip(images, predictions)):
+        # Create overlay mask
+        overlay = np.zeros_like(image)
+        for cls, color in class_colors.items():
+            overlay[prediction == cls] = np.array(color) / 255.0  # Normalize colors to [0,1]
 
-    if label.size()[0] >=3:
-        plt.subplot(144)
-        plt.imshow(label[2].cpu(), cmap='gray')
-        plt.title('Background Mask')
+        # Blend the overlay with the image
+        blended = (1 - alpha) * image + alpha * overlay
 
-    plt.show()
+        # Plot the result
+        ax = axes[i]
+        ax.imshow(blended)
+        ax.axis("off")
 
-def show_datapoint_classes(datapoint):
+        # Add legend only for the first image
+        if i == 0:
+            legend_patches = [Patch(color=np.array(color) / 255, label=class_labels[cls]) for cls, color in class_colors.items() if cls < len(class_labels)]
+            ax.legend(handles=legend_patches, loc='upper right')
 
-    image = datapoint[0]
-    label = datapoint[1]
-    
-    plt.figure(figsize=(12,4))
-
-    plt.subplot(141)
-    plt.imshow(image.permute(1,2,0).cpu())
-    plt.title('Original Image')
-
-    plt.subplot(142)
-    plt.imshow((label.cpu() == 1).float(), cmap='gray')
-    plt.title('Cat Mask')
-
-    plt.subplot(143)
-    plt.imshow((label.cpu() == 2).float(), cmap='gray')
-    plt.title('Dog Mask')
-
-    plt.subplot(144)
-    plt.imshow((label.cpu() == 0).float(), cmap='gray')
-    plt.title('Background mask')
-
-    plt.show()
-
-def show_prediciton(input,output):
-
-    image = input[0]
-    label = torch.nn.functional.softmax(output[0],dim=0)
-    
-    plt.figure(figsize=(12,4))
-
-    plt.subplot(141)
-    plt.imshow(image.permute(1,2,0).cpu())
-    plt.title('Original Image')
-
-    plt.subplot(142)
-    plt.imshow(label[0].cpu(), cmap='gray')
-    plt.title('Background Mask')
-
-    plt.subplot(143)
-    plt.imshow(label[1].cpu(), cmap='gray')
-    plt.title('Cat Mask')
-
-    plt.subplot(144)
-    plt.imshow((label[2]).cpu(), cmap='gray')
-    plt.title('Dog Mask')
-
-
-
-    plt.show()
-
-def show_detailed_prediction(input,output):
-    fig, axes = plt.subplots(3, 4, figsize=(12, 9))  # 3 rows, 4 columns
-
-    image = input[0]
-    label = output[0]
-
-    # First row
-    axes[0, 0].imshow(image.permute(1, 2, 0).cpu())
-    axes[0, 0].set_title('Original Image')
-
-    axes[0, 1].imshow(label[0].cpu(), cmap='gray')
-    axes[0, 1].set_title('Cat Mask')
-
-    axes[0, 2].imshow(label[1].cpu(), cmap='gray')
-    axes[0, 2].set_title('Dog Mask')
-
-    if label.size()[0] >= 3:
-        axes[0, 3].imshow((label[2]).cpu(), cmap='gray')
-        axes[0, 3].set_title('Background mask')
-    else:
-        axes[0, 3].imshow((label[0] + label[1]).cpu(), cmap='gray')
-        axes[0, 3].set_title('Sum of Masks')
-
-    # Second row (Modify these based on your additional data)
-    axes[1, 0].imshow((label[0].cpu() > 0.25).float(), cmap='gray')
-    axes[1, 0].set_title('Cat uncertianty > 0.25')
-
-    axes[1, 1].imshow((label[0].cpu() > 0.5).float(), cmap='gray')
-    axes[1, 1].set_title('Cat uncertianty > 0.5')
-
-    axes[1, 2].imshow((label[0].cpu() > 0.75).float(), cmap='gray')
-    axes[1, 2].set_title('Cat uncertianty > 0.75')
-
-    axes[1, 3].imshow((label[0].cpu() > 0.9).float(), cmap='gray')
-    axes[1, 3].set_title('Cat uncertianty > 0.95')
-
-    # Third row (Modify these based on your additional data)
-    axes[2, 0].imshow((label[1].cpu() > 0.25).float(), cmap='gray')
-    axes[2, 0].set_title('Dog uncertianty > 0.25')
-
-    axes[2, 1].imshow((label[1].cpu() > 0.5).float(), cmap='gray')
-    axes[2, 1].set_title('Dog uncertianty > 0.5')
-
-    axes[2, 2].imshow((label[1].cpu() > 0.75).float(), cmap='gray')
-    axes[2, 2].set_title('Dog uncertianty > 0.75')
-
-    axes[2, 3].imshow((label[1].cpu() > 0.9).float(), cmap='gray')
-    axes[2, 3].set_title('Dog uncertianty > 0.9')
-
-    # Remove axis labels
-    for ax in axes.flat:
-        ax.axis('off')
+    # Hide any unused subplots
+    for j in range(i + 1, len(axes)):
+        axes[j].axis("off")
 
     plt.tight_layout()
     plt.show()
 
-
-def plot_segmentation(image, prediction, class_colors=None, alpha=0.5):
-
-    class_labels = ['Background', 'Cat', 'Dog']
-
-    # Remove batch dimension
-    image = image[0]
-    prediction = prediction[0]
-
-    # Convert image tensor to NumPy (HxWxC)
-    if isinstance(image, torch.Tensor):
-        image = image.cpu().numpy().transpose(1, 2, 0)
-
-    # Convert prediction tensor to class index map
-    if isinstance(prediction, torch.Tensor):
-        prediction = torch.nn.functional.softmax(prediction, dim=0).argmax(dim=0).cpu().numpy()
-
-    # Define default colors if none provided
-    num_classes = max(prediction.max() + 1, len(class_labels))  # Ensure it covers all classes
-    if class_colors is None:
-        class_colors = {i: (np.random.randint(0, 255), np.random.randint(0, 255), np.random.randint(0, 255)) for i in range(num_classes)}
-
-    # Create overlay mask
-    overlay = np.zeros_like(image)
-    for cls, color in class_colors.items():
-        overlay[prediction == cls] = np.array(color) / 255.0  # Normalize colors to [0,1]
-
-    # Blend the overlay with the image
-    blended = (1 - alpha) * image + alpha * overlay
-
-    # Plot the result
-    fig, ax = plt.subplots(figsize=(6, 6))
-    ax.imshow(blended)
-    ax.axis("off")
-
-    # Create legend
-    legend_patches = [Patch(color=np.array(color) / 255, label=class_labels[cls]) for cls, color in class_colors.items() if cls < len(class_labels)]
-    ax.legend(handles=legend_patches, loc='upper right')
-
-    plt.show()
-
-def show_segment_class_datapoint(datapoint):
-    image = datapoint[0]
-    segment_mask = datapoint[1][0]
-    segment_class = datapoint[1][1]
-
-    print(f"Segment Class: {segment_class}")
-
-    plt.figure(figsize=(12,4))
-
-    plt.subplot(141)
-    plt.imshow(image.permute(1,2,0).cpu())
-    plt.title('Original Image')
-
-    plt.subplot(142)
-    plt.imshow(segment_mask.cpu(), cmap='gray')
-    plt.title(f"Mask for class: {segment_class}")
-
-    plt.show()
-
 def convert_prediciton(masks, classes):
+    """
+    Converts predicted masks and class probabilities into a single tensor 
+    with background, cat, and dog segmentation masks.
+    Args:
+        masks (Tensor): A tensor of predicted mask probabilities.
+        classes (Tensor): A tensor of predicted class probabilities.
+    Returns:
+        Tensor: A tensor containing background, cat, and dog masks.
+    """
 
-    det_masks = (masks > 0.5).float()
-    det_classes = (classes > 0.5).float()
+    # Threshold the predicted masks and classes to binary values
+    det_masks = (masks > 0.5).float()  # Masks with values > 0.5 are considered detected
+    det_classes = (classes > 0.5).float()  # Classes with probabilities > 0.5 are considered detected
 
+    # Create background masks by inverting the detected masks
     bg_masks = 1 - det_masks
 
+    # Create cat masks by combining detected masks with non-detected classes
     cat_masks = det_masks * (1 - det_classes.unsqueeze(-1).unsqueeze(-1))
+
+    # Create dog masks by combining detected masks with detected classes
     dog_masks = det_masks * det_classes.unsqueeze(-1).unsqueeze(-1)
 
-    out_masks = torch.cat([bg_masks,cat_masks,dog_masks], dim=1)
+    # Concatenate the background, cat, and dog masks along the channel dimension
+    out_masks = torch.cat([bg_masks, cat_masks, dog_masks], dim=1)
 
+    # Return the final output masks
     return out_masks
 
 def convert_targets(masks,classes):
+    def convert_targets(masks, classes):
+        """
+        Converts binary segmentation masks into categorical masks based on class labels.
 
+        This function takes binary segmentation masks and a tensor of class labels, 
+        and converts them into a single categorical mask where:
+          - Pixels corresponding to class 0 (e.g., "cat") are labeled as 1.
+          - Pixels corresponding to class 1 (e.g., "dog") are labeled as 2.
+
+        Args:
+            masks (torch.Tensor): A tensor of binary segmentation masks with shape 
+                                  (batch_size, 1, height, width).
+            classes (torch.Tensor): A tensor of class labels with shape (batch_size,), 
+                                    where each value is either 0 or 1.
+
+        Returns:
+            torch.Tensor: A tensor of categorical masks with shape (batch_size, height, width), 
+                          where pixel values are:
+                          - 0 for background
+                          - 1 for class 0 (e.g., "cat")
+                          - 2 for class 1 (e.g., "dog")
+        """
+
+    # Create cat masks by combining the binary masks with the inverse of the class labels
     cat_masks = masks * (1 - classes.unsqueeze(-1).unsqueeze(-1))
+
+    # Create dog masks by combining the binary masks with the class labels
     dog_masks = masks * classes.unsqueeze(-1).unsqueeze(-1)
 
+    # Combine the cat and dog masks into a single categorical mask
+    # Assign 1 for cat pixels and 2 for dog pixels
     out_masks = cat_masks + 2 * dog_masks
+
+    # Convert the output masks to integer type
     out_masks = out_masks.long()
 
+    # Remove the channel dimension for the final output
     return out_masks.squeeze(1)
 
 
