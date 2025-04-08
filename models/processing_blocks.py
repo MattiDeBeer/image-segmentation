@@ -14,6 +14,9 @@ import torchvision.models as models
 import torchvision.transforms as transforms
 import random
 import kornia.augmentation as K
+import kornia.filters as KF
+import kornia as K
+
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, padding=1):
@@ -210,6 +213,7 @@ class DataAugmentor(nn.Module):
         transformed_masks[::self.augmentations_per_datapoint+1] = saved_masks
 
         return transformed_images, transformed_masks
+    
 class DataAugmentorPrompt(nn.Module):
     def __init__(self, augmentations_per_datapoint):
         super().__init__()
@@ -226,45 +230,104 @@ class DataAugmentorPrompt(nn.Module):
         )
 
     def transform_batch(self, images, masks, prompts):
-        """
-        images: [B, 3, H, W]     - color images
-        masks:  [B, 1, H, W]     - binary segmentation masks (0/1 in float)
-        prompts:[B, 1, H, W]     - prompt maps (float)
-        """
-        # Concatenate along channel dimension => shape: [B, (3 + 1 + 1)=5, H, W]
-        concat = torch.cat([images, masks, prompts], dim=1)
-        
-        # Apply geometric transforms (flip, rotation) to everything
-        concat = self.geometric_transforms(concat)
-        
-        # Split back:
-        images_aug  = concat[:, :3]         # [B,3,H,W]
-        masks_aug   = concat[:, 3:4]        # [B,1,H,W]
-        prompts_aug = concat[:, 4:5]        # [B,1,H,W]
 
-        # Apply color transforms only to the images
+        if masks.dim() == 3:
+            masks = masks.unsqueeze(1)
+    
+        concatenated_batch = torch.cat([images, masks.float(), prompts.float()], dim=1)  
+        concatenated_batch = self.geometric_transforms(concatenated_batch)
+
+        # Split them back:
+        images_aug = concatenated_batch[:, :3, :, :]
+        masks_aug = concatenated_batch[:, 3:4, :, :]   
+        prompts_aug = concatenated_batch[:, 4:5, :, :]   
+
+        # Apply colour transforms only to the images:
         images_aug = self.colour_transforms(images_aug)
 
-        # Keep masks and prompts as float (binary masks)
-        return images_aug, masks_aug, prompts_aug
+        return images_aug, masks_aug.long(), prompts_aug
 
     def forward(self, images, masks, prompts):
-        """
-        images:  [B,3,H,W]
-        masks:   [B,1,H,W]  (binary)
-        prompts: [B,1,H,W]
-        """
-        # Save original unaugmented items so they remain untransformed in some fraction of the batch
+        # Save original unaugmented items based on augmentations_per_datapoint
         saved_images  = images[::self.augmentations_per_datapoint + 1]
         saved_masks   = masks[::self.augmentations_per_datapoint + 1]
         saved_prompts = prompts[::self.augmentations_per_datapoint + 1]
 
-        # Apply the transform to the batch
-        images_aug, masks_aug, prompts_aug = self.transform_batch(images, masks, prompts)
+        transformed_images, transformed_masks, transformed_prompts = self.transform_batch(images, masks, prompts)
 
-        # Restore the saved (non-augmented) items
-        images_aug[::self.augmentations_per_datapoint + 1]  = saved_images
-        masks_aug[::self.augmentations_per_datapoint + 1]   = saved_masks
-        prompts_aug[::self.augmentations_per_datapoint + 1] = saved_prompts
+        # Reinsert the saved (non-augmented) items:
+        transformed_images[::self.augmentations_per_datapoint + 1]  = saved_images
+        transformed_masks[::self.augmentations_per_datapoint + 1]   = saved_masks.unsqueeze(1)  # ensure channel dimension
+        transformed_prompts[::self.augmentations_per_datapoint + 1] = saved_prompts
 
-        return images_aug, masks_aug, prompts_aug
+        # If your downstream expects masks to be [B, H, W], squeeze the channel dimension:
+        return transformed_images, transformed_masks.squeeze(1), transformed_prompts
+
+
+class GaussianPixelNoise(nn.Module):
+    def __init__(self, std):
+        super().__init__()
+        self.std = std
+
+    def forward(self, img):
+        noise = torch.randn_like(img) * (self.std / 255.0)
+        noisy_img = img + noise
+        return torch.clamp(noisy_img, 0.0, 1.0)
+
+
+class RepeatedBlur(nn.Module):
+    def __init__(self, times):
+        super().__init__()
+        self.times = times
+
+    def forward(self, img):
+        for _ in range(self.times):
+            img = KF.box_blur(img, (3, 3))
+        return img
+
+
+class ContrastChange(nn.Module):
+    def __init__(self, factor):
+        super().__init__()
+        self.factor = factor
+
+    def forward(self, img):
+        img = img * self.factor
+        return torch.clamp(img, 0.0, 1.0)
+
+
+class BrightnessChange(nn.Module):
+    def __init__(self, offset):
+        super().__init__()
+        self.offset = offset / 255.0
+
+    def forward(self, img):
+        img = img + self.offset
+        return torch.clamp(img, 0.0, 1.0)
+
+
+class Occlusion(nn.Module):
+    def __init__(self, size):
+        super().__init__()
+        self.size = size
+
+    def forward(self, img):
+        b, c, h, w = img.shape
+        for i in range(b):
+            x = random.randint(0, w - self.size) if w > self.size else 0
+            y = random.randint(0, h - self.size) if h > self.size else 0
+            img[i, :, y:y+self.size, x:x+self.size] = 0.0
+        return img
+
+class SaltAndPepper(nn.Module):
+    def __init__(self, amount):
+        super().__init__()
+        self.amount = amount
+
+    def forward(self, img):
+        b, c, h, w = img.shape
+        noise = torch.rand((b, 1, h, w), device=img.device)
+        salt = (noise < self.amount / 2).float()
+        pepper = (noise > 1 - self.amount / 2).float()
+        mask = 1 - salt - pepper
+        return img * mask + salt
