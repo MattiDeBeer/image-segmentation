@@ -10,7 +10,7 @@ import random
 import copy
 import os
 import warnings
-class PromptImageDataset(Dataset):
+class CustomImageDatasetPrompt(Dataset):
     """
     A dataset for prompt-based segmentation:
       - (image, gaussian_heatmap, binary_mask_for_that_point)

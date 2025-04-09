@@ -12,6 +12,9 @@ import torch.optim as optim
 from torch.cuda.amp import autocast, GradScaler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from customDatasets.datasets import CustomImageDatasetPrompt
+from models.Unet_prompt import ClipUnet
+from models.processing_blocks import DataAugmentorNew
 
 # Imports for your dataset, augmentor, and model
 # from your_project.datasets import CustomImageDatasetPrompt
@@ -255,7 +258,7 @@ if __name__ == "__main__":
     model = ClipUnet(in_channels=4, out_channels=1)
 
     # 3) Create DataAugmentor
-    data_augmentor = DataAugmentor(augmentations_per_datapoint=4)
+    data_augmentor = DataAugmentorNew(augmentations_per_datapoint=4)
 
     # 4) Create Loss and Optimizer
     criterion = nn.BCEWithLogitsLoss()
