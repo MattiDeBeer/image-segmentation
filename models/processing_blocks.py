@@ -213,6 +213,86 @@ class DataAugmentor(nn.Module):
         transformed_masks[::self.augmentations_per_datapoint+1] = saved_masks
 
         return transformed_images, transformed_masks
+
+class DataAugmentorNew(nn.Module):
+    """
+    Expects images, prompts, and masks:
+       images.shape  => [B, 3, H, W]
+       prompts.shape => [B, 1, H, W]
+       masks.shape   => [B, H, W]
+    Applies:
+       1) Geometric transforms to all (images+prompts+masks)
+       2) Color transforms to images only.
+       3) Returns the augmented triplet.
+    """
+
+    def __init__(self, augmentations_per_datapoint):
+        super().__init__()
+        
+        self.augmentations_per_datapoint = augmentations_per_datapoint
+
+        # Geometric transforms (applied to images, prompt, and mask together)
+        self.geometric_transforms = nn.Sequential(
+            K.RandomHorizontalFlip(),
+            K.RandomRotation(90, resample='nearest', same_on_batch=False),
+            # add more if you like (RandomResizedCrop, etc.)
+        )
+
+        # Color transforms (applied to images only)
+        self.colour_transforms = nn.Sequential(
+            K.ColorJitter(brightness=0.4, contrast=0.3, saturation=0.2, hue=0.2, same_on_batch=False),
+            K.RandomGaussianBlur(kernel_size=(5, 5), sigma=(0.1, 2.0), p=1.0, same_on_batch=False)
+        )
+
+    def transform_batch(self, images, prompts, masks):
+        """
+        images:  [B, 3, H, W]
+        prompts: [B, 1, H, W]
+        masks:   [B, H, W] (we'll temporarily unsqueeze channel dim)
+        """
+
+        # 1) Combine them into a single tensor to apply geometric transforms together
+        #    Combined shape: [B, 3 + 1 + 1, H, W] = [B, 5, H, W]
+        masks = masks.unsqueeze(1).float()  # make [B, 1, H, W] for concatenation
+        concatenated = torch.cat([images, prompts, masks], dim=1)
+
+        # 2) Apply geometric transforms (flip, rotate, etc.)
+        #    This ensures the image, prompt, and mask are all transformed identically
+        transformed = self.geometric_transforms(concatenated)
+
+        # 3) Split them back out
+        # images => first 3 channels
+        # prompt => next 1 channel
+        # mask   => last 1 channel
+        transformed_images = transformed[:, 0:3, :, :]
+        transformed_prompts = transformed[:, 3:4, :, :]
+        transformed_masks = transformed[:, 4, :, :].long()  # shape [B, H, W]
+
+        # 4) Now apply color transforms to the images only
+        transformed_images = self.colour_transforms(transformed_images)
+
+        return transformed_images, transformed_prompts, transformed_masks
+    
+    def forward(self, images, prompts, masks):
+        """
+        In your training loop, you'll do something like:
+           images, prompts, masks = self.data_augmentor(images, prompts, masks)
+        """
+        # Save the unaltered version at intervals
+        saved_images  = images[::self.augmentations_per_datapoint+1]
+        saved_prompts = prompts[::self.augmentations_per_datapoint+1]
+        saved_masks   = masks[::self.augmentations_per_datapoint+1]
+
+        # Perform augmentations
+        transformed_images, transformed_prompts, transformed_masks = self.transform_batch(images, prompts, masks)
+
+        # Overwrite every (augmentations_per_datapoint+1)th sample with the untransformed version
+        transformed_images[::self.augmentations_per_datapoint+1]  = saved_images
+        transformed_prompts[::self.augmentations_per_datapoint+1] = saved_prompts
+        transformed_masks[::self.augmentations_per_datapoint+1]   = saved_masks
+
+        return transformed_images, transformed_prompts, transformed_masks
+
     
 class DataAugmentorPrompt(nn.Module):
     def __init__(self, augmentations_per_datapoint):

@@ -10,6 +10,194 @@ import random
 import copy
 import os
 import warnings
+class PromptImageDataset(Dataset):
+    """
+    A dataset for prompt-based segmentation:
+      - (image, gaussian_heatmap, binary_mask_for_that_point)
+
+    The mask is binary:
+      - 1 = region of the clicked pixel's class
+      - 0 = everything else
+    """
+
+    def __init__(self,
+                 dataset_loc='Data/Oxford-IIIT-Pet-Augmented',
+                 augmentations_per_datapoint=0,
+                 split='validation',
+                 cache=False,
+                 gaussian_sigma=5,
+                 ignore_uncertainty=True):
+        """
+        Args:
+            dataset_loc (str): Path to the dataset folder.
+            augmentations_per_datapoint (int): Number of augmentations. 
+            split (str): 'train', 'validation', or 'test'.
+            cache (bool): If True, load/save a cached version of (image, mask).
+            gaussian_sigma (int): Std. dev. for Gaussian peak around the prompt point.
+            ignore_uncertainty (bool): Whether to skip uncertain pixels when sampling a point.
+        """
+        if split not in ['train', 'validation', 'test']:
+            raise ValueError(
+                f"split must be one of: 'train', 'validation', 'test'. Got {split}."
+            )
+
+        if not isinstance(augmentations_per_datapoint, int) or augmentations_per_datapoint < 0:
+            raise ValueError(f"augmentations_per_datapoint must be a nonnegative integer, got {augmentations_per_datapoint}.")
+
+        # Attempt to load the dataset
+        try:
+            self.dataset = load_dataset(dataset_loc, split=split)
+        except Exception as e:
+            if "doesn't exist on the Hub or cannot be accessed" in str(e):
+                print("Error: The dataset was not found locally. Downloading...")
+                download_huggingface_dataset("mattidebeer/Oxford-IIIT-Pet-Augmented",
+                                             dataset_loc,
+                                             split=split)
+                self.dataset = load_dataset(dataset_loc, split=split)
+            else:
+                print(f"An unexpected error occurred: {e}")
+                raise e
+
+        self.augmentations_per_datapoint = augmentations_per_datapoint + 1
+        self.gaussian_sigma = gaussian_sigma
+        self.ignore_uncertainty = ignore_uncertainty
+
+        self.cache = cache
+        self.dataset_length = len(self.dataset) * self.augmentations_per_datapoint
+
+        if self.cache:
+            cache_file = os.path.join(dataset_loc, f"{split}_dataset.pt")
+            if os.path.exists(cache_file):
+                print(f"Loading dataset cache from {cache_file}")
+                self.dataset_cache = torch.load(cache_file, weights_only=True)
+            else:
+                print(f"Cache not found. Creating and saving dataset cache at {cache_file}")
+                self.dataset_cache = []
+                for datapoint in tqdm(self.dataset,
+                                      desc=f"Caching {split} dataset:",
+                                      leave=False,
+                                      total=len(self.dataset)):
+                    self.dataset_cache.append(self._deserialize_datapoint(datapoint))
+
+                torch.save(self.dataset_cache, cache_file)
+                self.dataset_cache = torch.load(cache_file, weights_only=True)
+
+            del self.dataset
+        else:
+            self.dataset_cache = None
+
+    def __len__(self):
+        return self.dataset_length
+
+    def _deserialize_datapoint(self, datapoint):
+        """Convert the stored byte arrays to torch Tensors."""
+        image = self._deserialize_numpy(datapoint['image'])
+        mask = self._deserialize_numpy(datapoint['mask'], shape=(256, 256))
+
+        # Convert image
+        image = torch.from_numpy(image).permute(2, 0, 1).float() / 255.0
+
+        # Convert mask to a torch tensor
+        mask = torch.from_numpy(mask)
+
+        return image, mask
+
+    def _deserialize_numpy(self,
+                           byte_data,
+                           shape=(256, 256, 3),
+                           dtype=np.uint8):
+        """Helper to convert the stored byte data into a numpy array."""
+        return copy.deepcopy(np.frombuffer(byte_data, dtype=dtype).reshape(shape))
+
+    def __getitem__(self, idx):
+        """
+        Returns:
+            image: Tensor [3, H, W]
+            prompt_heatmap: Tensor [1, H, W]
+            target_mask: Tensor [H, W] (binary) -> 1 if pixel belongs to the clicked point's class, else 0
+        """
+        # Figure out which datapoint
+        image_index = idx // self.augmentations_per_datapoint
+
+        if self.cache:
+            image, mask = self.dataset_cache[image_index]
+        else:
+            datapoint = self.dataset[image_index]
+            image, mask = self._deserialize_datapoint(datapoint)
+
+        # mask has values:
+        #   0 or 255 => background or uncertain
+        #   38 => cat
+        #   75 => dog
+        # or, in your old logic, you might have cat=1, dog=2, etc.
+        # Adjust the logic below to whatever your stored mask values actually are.
+
+        # Convert to simpler labeling:
+        #   1 => cat
+        #   2 => dog
+        #   0 => background
+        #   255 => uncertainty
+        cat_mask = (mask == 38).long()
+        dog_mask = (mask == 75).long()
+        # If the original background was 0, it remains 0
+        # If 255 is uncertain -> handle or ignore below
+
+        # Combine to a single label mask: 
+        #    1 = cat, 2 = dog, 0 = background, 255 = uncertain
+        label_mask = (1 * cat_mask) + (2 * dog_mask)
+        # If there's 255, set that for uncertain
+        label_mask[mask == 255] = 255
+
+        # Now pick a random pixel for the prompt
+        # Option A: skip uncertain (255) if ignore_uncertainty=True
+        valid_pixels = (label_mask != 255) if self.ignore_uncertainty else torch.ones_like(label_mask, dtype=torch.bool)
+        valid_indices = valid_pixels.nonzero(as_tuple=False)  # shape: [N, 2]
+        # Choose 1 random pixel
+        chosen_idx = valid_indices[torch.randint(len(valid_indices), size=(1,))]
+        y, x = chosen_idx[0].item(), chosen_idx[1].item()
+
+        # Figure out the label at that point
+        chosen_label = label_mask[y, x].item()  # 0, 1, or 2
+
+        # Build a binary mask: 1 if label_mask == chosen_label, else 0
+        # For background => chosen_label=0 => all 0-labeled pixels become 1
+        binary_mask = (label_mask == chosen_label).long()
+
+        # Create a Gaussian heatmap channel of size [H, W]
+        prompt_heatmap = self._create_gaussian_heatmap(
+            height=label_mask.shape[0],
+            width=label_mask.shape[1],
+            center=(y, x),
+            sigma=self.gaussian_sigma
+        )
+
+        return image, prompt_heatmap, binary_mask
+
+    def _create_gaussian_heatmap(self, height, width, center, sigma=5):
+        """
+        Creates a 2D Gaussian heatmap with a peak at `center`.
+        
+        center: (y, x)
+        sigma: Standard deviation of the Gaussian
+        """
+        y, x = torch.meshgrid(
+            torch.arange(height, dtype=torch.float32),
+            torch.arange(width, dtype=torch.float32),
+            indexing='ij'
+        )
+        # center_y, center_x
+        cy, cx = center
+        # Calculate squared distance from center
+        dist_sq = (x - cx)**2 + (y - cy)**2
+        # Gaussian = exp(-dist / (2 * sigma^2))
+        heatmap = torch.exp(-dist_sq / (2 * sigma**2))
+
+        # scale to [0,1], though not strictly necessary
+        heatmap /= heatmap.max()
+        
+        # unsqueeze to make [1, H, W]
+        return heatmap.unsqueeze(0)
+
     
 class CustomImageDataset(Dataset):
 
