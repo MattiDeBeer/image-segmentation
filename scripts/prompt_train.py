@@ -55,11 +55,17 @@ val_loader   = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, pin
 # Initialize the model and move it to device
 model = ClipUnetPrompt()
 state_dict = torch.load("saved-models/ClipUnet/model.pth", map_location="cpu")
-new_state_dict = OrderedDict()
+
+# Load only encoder weights
+encoder_keys = ["input", "enc1", "enc2", "enc3", "bottleneck"]
+filtered_state_dict = OrderedDict()
+
 for k, v in state_dict.items():
-    new_key = k.replace("_orig_mod.", "")  # if necessary
-    new_state_dict[new_key] = v
-model.load_state_dict(new_state_dict, strict=False)
+    if any(k.startswith(key) for key in encoder_keys):
+        filtered_state_dict[k] = v
+
+missing, unexpected = model.load_state_dict(filtered_state_dict, strict=False)
+print(f"Loaded encoder weights. Missing keys: {missing}, Unexpected keys: {unexpected}")
 model.to(device)
 
 for param in model.enc1.parameters():
@@ -70,6 +76,9 @@ for param in model.enc3.parameters():
     param.requires_grad = False
 for param in model.bottleneck.parameters():
     param.requires_grad = False
+for param in model.clip_feature_extractor.parameters():
+    param.requires_grad = False
+
 
 # Initialize optimizer and loss function
 optimizer = optim.Adam(
