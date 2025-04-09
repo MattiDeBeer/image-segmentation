@@ -17,11 +17,12 @@ from models.losses import HybridLossBinary, IoUBinary, PixelAccuracyBinary, Dice
 # Dataset class
 from customDatasets.datasets import PromptImageDataset
 # Model component (implements prompt fusion)
-from models.simpleClipUnet import SimpleClipUnetPrompt
+from models.prompt_segmentation import ClipUnetPrompt
 # Helper functions for logging and saving info
 from models.helperFunctions import get_next_run_folder, save_training_info, write_csv_header, log_loss_to_csv
 # New data augmentor for prompt-based segmentation
 from models.processing_blocks import DataAugmentorPrompt
+from collections import OrderedDict
 
 # Hyperparameters
 num_epochs = 200
@@ -52,11 +53,30 @@ val_loader   = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, pin
 
 
 # Initialize the model and move it to device
-model = SimpleClipUnetPrompt()
+model = ClipUnetPrompt()
+state_dict = torch.load("saved-models/ClipUnet/model.pth", map_location="cpu")
+new_state_dict = OrderedDict()
+for k, v in state_dict.items():
+    new_key = k.replace("_orig_mod.", "")  # if necessary
+    new_state_dict[new_key] = v
+model.load_state_dict(new_state_dict, strict=False)
 model.to(device)
 
+for param in model.enc1.parameters():
+    param.requires_grad = False
+for param in model.enc2.parameters():
+    param.requires_grad = False
+for param in model.enc3.parameters():
+    param.requires_grad = False
+for param in model.bottleneck.parameters():
+    param.requires_grad = False
+
 # Initialize optimizer and loss function
-optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+optimizer = optim.Adam(
+    filter(lambda p: p.requires_grad, model.parameters()), 
+    lr=learning_rate, 
+    weight_decay=weight_decay
+)
 criterion =  nn.BCEWithLogitsLoss()
 
 # Initialize metrics
